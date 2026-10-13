@@ -1,0 +1,216 @@
+@import "tailwindcss";
+
+/* ─── Pebble design tokens ──────────────────────────────────────────────────
+   Playful + vibrant, Grade-7 appropriate. Nunito for headings/UI,
+   Inter for long-form lesson reading. Duolingo-style 3D buttons.
+----------------------------------------------------------------------------- */
+@theme {
+  --font-sans: "Nunito", ui-rounded, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Nunito", ui-rounded, system-ui, sans-serif;
+  --font-read: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* warm neutral stage */
+  --color-stage: #fff9f0;
+  --color-parchment: #fff3df;
+  --color-ink: #3c3c3c;
+  --color-muted: #6f6f6f;
+  --color-faint: #9a9a9a;
+  --color-line: #e5e0d5;
+  --color-line-strong: #d8d2c2;
+
+  /* sunshine yellow */
+  --color-sun-100: #fff3c4;
+  --color-sun-300: #ffde59;
+  --color-sun-400: #ffc800;
+  --color-sun-500: #e0a800;
+  --color-sun-700: #7a4a00;
+
+  /* mint green */
+  --color-mint-50: #eefbda;
+  --color-mint-100: #d7ffb8;
+  --color-mint-400: #58cc02;
+  --color-mint-500: #46a302;
+  --color-mint-700: #356b00;
+  --color-mint-800: #254d00;
+
+  /* sky blue */
+  --color-sky-100: #ddf4ff;
+  --color-sky-200: #b8e6ff;
+  --color-sky-400: #1cb0f6;
+  --color-sky-500: #1899d6;
+  --color-sky-700: #0b6fa4;
+
+  /* coral */
+  --color-coral-100: #ffe3e3;
+  --color-coral-400: #ff6b6b;
+  --color-coral-500: #e54848;
+  --color-coral-700: #9c2b2b;
+
+  /* tangerine */
+  --color-tang-100: #ffe9cf;
+  --color-tang-400: #ff9600;
+  --color-tang-500: #d97a00;
+  --color-tang-700: #7c4300;
+
+  /* grape */
+  --color-grape-100: #ecddff;
+  --color-grape-400: #a560ff;
+  --color-grape-500: #8548e0;
+  --color-grape-700: #4f2a99;
+
+  /* restrained parent-dashboard slate */
+  --color-slate-ink: #334155;
+  --color-slate-muted: #64748b;
+}
+
+html,
+body {
+  background: var(--color-stage);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* long-form reading always uses Inter for legibility */
+.reading {
+  font-family: var(--font-read);
+  font-size: 15.5px;
+  line-height: 1.75;
+  color: #3c3c3c;
+  max-width: 62ch;
+}
+
+/* Duolingo-style 3D press button helper */
+.duo-press {
+  transition:
+    transform 0.06s ease,
+    filter 0.15s ease,
+    box-shadow 0.06s ease;
+}
+.duo-press:active {
+  transform: translateY(4px);
+}
+
+/* floating + delightful motion (subtle, respects reduced motion) */
+@keyframes floaty {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1.5deg);
+  }
+  50% {
+    transform: translateY(-7px) rotate(1.5deg);
+  }
+}
+.animate-floaty {
+  animation: floaty 4s ease-in-out infinite;
+}
+
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+.animate-bob {
+  animation: bob 1.6s ease-in-out infinite;
+}
+
+@keyframes pop-in {
+  0% {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.animate-pop-in {
+  animation: pop-in 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(-4deg);
+  }
+  50% {
+    transform: rotate(4deg);
+  }
+}
+.animate-wiggle {
+  animation: wiggle 0.9s ease-in-out infinite;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-8px) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(46px) rotate(220deg);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-floaty,
+  .animate-bob,
+  .animate-wiggle,
+  .animate-pop-in {
+    animation: none;
+  }
+}
+
+/* flashcard flip */
+.flip-scene {
+  perspective: 1200px;
+}
+.flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.3, 1.15);
+}
+.flip-inner.flipped {
+  transform: rotateY(180deg);
+}
+.flip-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.flip-back {
+  transform: rotateY(180deg);
+}
+
+/* dotted journey trail */
+.journey-trail {
+  background-image: linear-gradient(to bottom, #d8d2c2 45%, transparent 45%);
+  background-size: 4px 14px;
+  background-repeat: repeat-y;
+  background-position: center top;
+}
+
+/* playful polka backdrop for hero panels */
+.dot-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.35) 2.2px, transparent 2.2px);
+  background-size: 18px 18px;
+}
+.dot-grid-dark {
+  background-image: radial-gradient(rgba(60, 60, 60, 0.08) 2px, transparent 2px);
+  background-size: 18px 18px;
+}
+
+.card-lift {
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+}
+.card-lift:hover {
+  transform: translateY(-3px);
+}

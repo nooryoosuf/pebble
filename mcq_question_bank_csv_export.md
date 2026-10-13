@@ -1,0 +1,13 @@
+Question_ID,Chapter_ID,Objective_ID,Question_Text,Option_A,Option_B,Option_C,Option_D,Correct_Answer,Difficulty,Skill_Tag
+mcq-01-01,ch-01,lo-1.1.1,Which of the following items is classified as a basic human need?,Smartwatch,Clean drinking water,Video game console,Overseas holiday,B,Easy,Knowledge & Understanding
+mcq-01-02,ch-01,lo-1.2.2,What is the economic reward earned by the factor of production 'Land'?,Wages,Interest,Rent,Profit,C,Medium,Knowledge
+mcq-01-03,ch-01,lo-1.1.3,A student has MVR 50 and chooses a revision book over a cinema ticket. What is the opportunity cost?,The MVR 50 spent,The enjoyment of the film at the cinema,The knowledge from the book,The travel cost to the bookshop,B,Medium,Application
+mcq-02-01,ch-02,lo-2.1.2,Which of the following is classified as a non-current asset?,Trade Receivables,Bank Balance,Business Delivery Boat,Closing Inventory,C,Medium,Classification
+mcq-02-02,ch-02,lo-2.1.3,If a business has total assets of MVR 150000 and liabilities of MVR 45000 what is owner capital?,MVR 195000,MVR 105000,MVR 45000,MVR 150000,B,Easy,Calculation
+mcq-02-03,ch-02,lo-2.3.1,Sales revenue is MVR 80000 and Cost of Goods Sold is MVR 45000. What is Gross Profit?,MVR 125000,MVR 45000,MVR 35000,MVR 80000,C,Easy,Calculation
+mcq-03-01,ch-03,lo-3.3.1,Which of the following business activities belongs to the primary sector?,Canning tuna in a factory,Pole-and-line tuna fishing at sea,Operating a diving school,Transporting passengers by speedboat,B,Easy,Classification
+mcq-03-02,ch-03,lo-3.2.1,What type of economic system operates in the Republic of Maldives?,Pure Planned Economy,Pure Free Market Economy,Mixed Economy,Traditional Subsistence-Only Economy,C,Easy,Application
+mcq-03-03,ch-03,lo-3.4.1,A workshop produces 600 souvenirs using 5 craftsmen over one week. What is productivity per worker?,3000 units,120 units,60 units,100 units,B,Medium,Calculation
+mcq-04-01,ch-04,lo-4.1.2,What is the primary benefit of limited liability for shareholders?,Never pay tax on profits,Loss is limited to money invested in shares,Exempt from filing accounts,Run business without directors,B,Medium,Understanding
+mcq-04-02,ch-04,lo-4.1.1,Which business entity type is easiest and least expensive to register and start?,Public Limited Company (Plc),Joint Venture,Sole Proprietorship,Private Limited Company (Ltd),C,Easy,Knowledge
+mcq-04-03,ch-04,lo-4.2.2,What is an argument often raised in favor of privatisation?,Guarantees lowest utility prices,Increases efficiency through profit incentive and competition,Removes commercial risk,Eliminates marketing need,B,Hard,Evaluation
