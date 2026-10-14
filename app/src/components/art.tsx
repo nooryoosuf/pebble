@@ -1,9 +1,16 @@
 import type { ReactNode } from "react";
 import { cn } from "./ui";
+import worldMarket from "../assets/illustrations/world-market.svg";
+import worldFinance from "../assets/illustrations/world-finance.svg";
+import worldShip from "../assets/illustrations/world-ship.svg";
+import worldDeal from "../assets/illustrations/world-deal.svg";
 
 /* ─── Pebble illustration system ─────────────────────────────────────────────
-   Custom flat vector art for emotional / decorative moments.
-   Functional UI icons stay Lucide; everything here is hand-drawn SVG.
+   World scenes: unDraw illustrations (https://undraw.co, free for commercial
+   use), vendored via the MIT-licensed `react-undraw-illustrations` package
+   and tinted to each world's palette. Credit in README.
+   Small decorative icons (flame, bolt, trophy, medals) stay hand-drawn SVG;
+   functional UI icons stay Lucide.
 ----------------------------------------------------------------------------- */
 
 /* Streak flame */
@@ -97,76 +104,25 @@ export function Medal({
   );
 }
 
-/* Chapter scenes — flat playful vignettes */
+/* Chapter scenes — unDraw illustrations, one per world (see header credit) */
+const worldScenes: Record<string, { src: string; label: string }> = {
+  "ch-01": { src: worldMarket, label: "Browsing an island market stall" },
+  "ch-02": { src: worldFinance, label: "Reviewing accounts and finance charts" },
+  "ch-03": { src: worldShip, label: "A container ship at the harbour" },
+  "ch-04": { src: worldDeal, label: "Two founders shaking hands on a deal" },
+};
+
 export function ChapterArt({ chapterId, className }: { chapterId: string; className?: string }) {
-  if (chapterId === "ch-01")
-    return (
-      <svg viewBox="0 0 160 100" className={className} role="img" aria-label="Island market scene">
-        <circle cx="128" cy="22" r="14" fill="#ffc800" stroke="#e0a800" strokeWidth="3" />
-        <ellipse cx="40" cy="26" rx="16" ry="7" fill="#fff" opacity=".9" />
-        <ellipse cx="66" cy="20" rx="12" ry="6" fill="#fff" opacity=".7" />
-        <path d="M0 78Q40 62 80 76T160 74V100H0V78Z" fill="#1cb0f6" />
-        <path d="M0 84Q40 72 80 82T160 80V100H0V84Z" fill="#1899d6" opacity=".6" />
-        <ellipse cx="80" cy="80" rx="42" ry="12" fill="#ffe9cf" stroke="#e0a800" strokeWidth="3" />
-        <rect x="62" y="52" width="36" height="24" rx="4" fill="#fff" stroke="#3c3c3c" strokeWidth="3" />
-        <path d="M58 52h44l-4-10H62l-4 10Z" fill="#ff6b6b" stroke="#e54848" strokeWidth="3" />
-        <path d="M66 52v-8M76 52v-8M86 52v-8M94 52v-8" stroke="#fff" strokeWidth="3" />
-        <rect x="74" y="62" width="12" height="14" rx="2" fill="#58cc02" />
-        <circle cx="52" cy="66" r="6" fill="#8fd14f" stroke="#46a302" strokeWidth="2.5" />
-        <circle cx="110" cy="64" r="7" fill="#8fd14f" stroke="#46a302" strokeWidth="2.5" />
-      </svg>
-    );
-  if (chapterId === "ch-02")
-    return (
-      <svg viewBox="0 0 160 100" className={className} role="img" aria-label="Accounting scene">
-        <rect x="18" y="14" width="64" height="72" rx="10" fill="#fff" stroke="#3c3c3c" strokeWidth="3.5" />
-        <rect x="18" y="14" width="64" height="20" rx="10" fill="#1cb0f6" />
-        <rect x="28" y="20" width="30" height="8" rx="4" fill="#fff" opacity=".85" />
-        <path d="M28 44h44M28 54h44M28 64h30" stroke="#d8d2c2" strokeWidth="5" strokeLinecap="round" />
-        <path d="M28 74h20" stroke="#58cc02" strokeWidth="5" strokeLinecap="round" />
-        <circle cx="118" cy="62" r="24" fill="#ffc800" stroke="#e0a800" strokeWidth="3.5" />
-        <text x="118" y="71" textAnchor="middle" fontWeight={900} fontSize="22" fill="#7a4a00" fontFamily="Nunito,sans-serif">M</text>
-        <circle cx="98" cy="30" r="12" fill="#ff6b6b" stroke="#e54848" strokeWidth="3" />
-        <text x="98" y="35" textAnchor="middle" fontWeight={900} fontSize="13" fill="#fff" fontFamily="Nunito,sans-serif">%</text>
-        <path d="M104 70l14-18" stroke="#46a302" strokeWidth="5" strokeLinecap="round" />
-        <path d="M110 52h8v8" stroke="#46a302" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    );
-  if (chapterId === "ch-03")
-    return (
-      <svg viewBox="0 0 160 100" className={className} role="img" aria-label="Harbour factory scene">
-        <circle cx="30" cy="22" r="13" fill="#ffc800" stroke="#e0a800" strokeWidth="3" />
-        <path d="M0 74h160v26H0z" fill="#1cb0f6" />
-        <path d="M0 74h160" stroke="#1899d6" strokeWidth="3" />
-        <rect x="96" y="30" width="44" height="30" rx="4" fill="#fff" stroke="#3c3c3c" strokeWidth="3" />
-        <rect x="102" y="22" width="8" height="12" fill="#9a9a9a" />
-        <rect x="122" y="22" width="8" height="12" fill="#9a9a9a" />
-        <rect x="102" y="38" width="12" height="10" fill="#ddf4ff" stroke="#1899d6" strokeWidth="2" />
-        <rect x="118" y="38" width="12" height="10" fill="#ddf4ff" stroke="#1899d6" strokeWidth="2" />
-        <path d="M30 62h44l-6 14H36l-6-14Z" fill="#ff9600" stroke="#d97a00" strokeWidth="3" />
-        <rect x="46" y="48" width="12" height="14" fill="#fff" stroke="#3c3c3c" strokeWidth="2.5" />
-        <rect x="30" y="76" width="44" height="5" rx="2.5" fill="#7c4300" />
-        <rect x="18" y="52" width="16" height="12" rx="2" fill="#a560ff" stroke="#8548e0" strokeWidth="2.5" />
-        <rect x="70" y="54" width="16" height="12" rx="2" fill="#58cc02" stroke="#46a302" strokeWidth="2.5" />
-      </svg>
-    );
+  const scene = worldScenes[chapterId] ?? worldScenes["ch-01"];
   return (
-    <svg viewBox="0 0 160 100" className={className} role="img" aria-label="Business district scene">
-      <circle cx="128" cy="22" r="13" fill="#ffc800" stroke="#e0a800" strokeWidth="3" />
-      <rect x="22" y="34" width="34" height="52" rx="4" fill="#1cb0f6" stroke="#1899d6" strokeWidth="3" />
-      <rect x="60" y="20" width="40" height="66" rx="4" fill="#a560ff" stroke="#8548e0" strokeWidth="3" />
-      <rect x="104" y="42" width="32" height="44" rx="4" fill="#ff9600" stroke="#d97a00" strokeWidth="3" />
-      {[42, 52, 62].map((y) => (
-        <g key={y}>
-          <rect x="28" y={y} width="8" height="6" fill="#fff" opacity=".9" />
-          <rect x="66" y={y - 14} width="9" height="7" fill="#fff" opacity=".9" />
-          <rect x="80" y={y - 14} width="9" height="7" fill="#fff" opacity=".9" />
-        </g>
-      ))}
-      <rect x="0" y="86" width="160" height="14" fill="#e8ddc4" />
-      <circle cx="48" cy="72" r="6" fill="#8fd14f" stroke="#46a302" strokeWidth="2.5" />
-      <circle cx="120" cy="70" r="7" fill="#8fd14f" stroke="#46a302" strokeWidth="2.5" />
-    </svg>
+    <img
+      src={scene.src}
+      alt=""
+      role="presentation"
+      aria-hidden
+      draggable={false}
+      className={cn("object-contain select-none", className)}
+    />
   );
 }
 

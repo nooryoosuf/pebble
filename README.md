@@ -58,6 +58,13 @@ they mirror the chapter content files exactly.
 - **Backend:** Supabase Postgres + RLS (students see own rows; parents see only
   linked students). Demo fallback = clearly labelled localStorage mode.
 
+## Credits
+
+- World illustrations: [unDraw](https://undraw.co) scenes by Katerina
+  Limpitsouni (free for commercial use), vendored via the MIT-licensed
+  [`react-undraw-illustrations`](https://github.com/GraemeFulton/react-undraw-illustrations)
+  package and tinted to each world's palette (`app/src/assets/illustrations/`).
+
 ## Key flows to test
 
 1. Start → Dashboard shows today's lesson, streak, XP, badges.
