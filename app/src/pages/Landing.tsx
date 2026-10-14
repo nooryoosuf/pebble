@@ -152,8 +152,8 @@ export default function Landing() {
               <div key={c.chapterId} className="card-lift overflow-hidden rounded-3xl border-2 border-line bg-white">
                 <div className={`${st.band} px-5 pt-4`}>
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <span className={`inline-block rounded-full px-2.5 py-0.5 text-[11px] font-black tracking-wider text-white uppercase ${st.chip}`}>
+                    <div className="min-w-0 flex-1">
+                      <span className={`inline-block max-w-full overflow-hidden text-ellipsis rounded-full px-2.5 py-0.5 text-[11px] font-black tracking-wider whitespace-nowrap text-white uppercase ${st.chip}`}>
                         World {c.chapterNumber} · pp. {c.pages.start}–{c.pages.end}
                       </span>
                       <p className="mt-1.5 text-lg leading-tight font-black text-ink">{c.title}</p>

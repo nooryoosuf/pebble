@@ -44,7 +44,7 @@ export default function Journey() {
                 <div className={cn("flex items-center gap-4 px-5 pt-4 pb-3", t.band)}>
                   <ChapterArt chapterId={c.chapterId} className="h-20 w-32 shrink-0 sm:h-24 sm:w-40" />
                   <div className="min-w-0 flex-1">
-                    <span className={cn("inline-block rounded-full px-2.5 py-0.5 text-[11px] font-black tracking-wider text-white uppercase", t.chip)}>
+                    <span className={cn("inline-block max-w-full overflow-hidden rounded-full px-2.5 py-0.5 text-[11px] font-black tracking-wider text-ellipsis whitespace-nowrap text-white uppercase", t.chip)}>
                       World {c.chapterNumber} · pp. {c.pages.start}–{c.pages.end}
                     </span>
                     <p className="mt-1 text-xl leading-tight font-black text-ink">{c.title}</p>
