@@ -113,9 +113,9 @@ export default function Challenge() {
                   {ok ? <CircleCheck size={17} strokeWidth={2.75} className="mt-0.5 shrink-0 text-mint-500" /> : <CircleX size={17} strokeWidth={2.75} className="mt-0.5 shrink-0 text-coral-500" />}
                   {q.question}
                 </p>
-                <p className="mt-1 flex items-start gap-1 text-xs font-bold text-muted">
-                  <Lightbulb size={13} strokeWidth={2.75} className="mt-0.5 shrink-0 text-sun-500" /><Gloss text={q.explanation} />
-                </p>
+                <div className="mt-1 flex items-start gap-1 text-xs font-bold text-muted">
+                  <Lightbulb size={13} strokeWidth={2.75} className="mt-0.5 shrink-0 text-sun-500" /><p className="min-w-0 flex-1"><Gloss text={q.explanation} /></p>
+                </div>
                 {!ok && (
                   <Link to={`/lesson/${lesson.lessonId}`} className="mt-1.5 inline-block text-xs font-black text-sky-700 underline">
                     Replay “{lesson.title}” <ArrowRight size={12} strokeWidth={3} className="inline" />

@@ -250,9 +250,21 @@ export default function LessonView() {
                     <TriangleAlert size={16} strokeWidth={2.75} /> Trap alert — don't get caught!
                   </p>
                   {lesson.misconceptions.map((m) => (
-                    <div key={m.id} className="mt-2 space-y-1 rounded-2xl border-2 border-line bg-white p-3 text-sm">
-                      <p className="flex items-start gap-1.5 font-bold text-coral-700"><CircleX size={15} strokeWidth={2.75} className="mt-0.5 shrink-0" /><Gloss text={m.misconception} /></p>
-                      <p className="flex items-start gap-1.5 font-bold text-mint-800"><CircleCheck size={15} strokeWidth={2.75} className="mt-0.5 shrink-0" /><Gloss text={m.intervention} /></p>
+                    <div key={m.id} className="mt-2 overflow-hidden rounded-2xl border-2 border-line bg-white text-sm">
+                      <div className="flex items-start gap-2 border-b-2 border-dashed border-line bg-coral-100/50 p-3">
+                        <CircleX size={17} strokeWidth={2.75} className="mt-0.5 shrink-0 text-coral-500" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[10px] font-black tracking-[0.14em] text-coral-700 uppercase">Myth</p>
+                          <p className="font-bold text-ink"><Gloss text={m.misconception} /></p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2 bg-mint-50/60 p-3">
+                        <CircleCheck size={17} strokeWidth={2.75} className="mt-0.5 shrink-0 text-mint-500" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[10px] font-black tracking-[0.14em] text-mint-700 uppercase">Fact</p>
+                          <p className="font-bold text-ink"><Gloss text={m.intervention} /></p>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </Card>
@@ -488,9 +500,9 @@ function ResultsPanel({ lessonId, attemptId, onRetry, onNext }: { lessonId: stri
                   {q.question}
                 </p>
                 <p className="mt-1 text-xs font-black">You: {picked ? `${picked} — ${q.options[picked as "A" | "B" | "C" | "D"]}` : "no answer"} · Correct: {q.correctAnswer} — {q.options[q.correctAnswer]}</p>
-                <p className="mt-1 flex items-start gap-1 text-xs font-bold text-muted">
-                  <Lightbulb size={13} strokeWidth={2.75} className="mt-0.5 shrink-0 text-sun-500" /><Gloss text={q.explanation} />
-                </p>
+                <div className="mt-1 flex items-start gap-1 text-xs font-bold text-muted">
+                  <Lightbulb size={13} strokeWidth={2.75} className="mt-0.5 shrink-0 text-sun-500" /><p className="min-w-0 flex-1"><Gloss text={q.explanation} /></p>
+                </div>
               </div>
             );
           })}
@@ -504,9 +516,9 @@ function ResultsPanel({ lessonId, attemptId, onRetry, onNext }: { lessonId: stri
                   {q.statement}
                 </p>
                 <p className="mt-1 text-xs font-black">You: {picked === undefined ? "no answer" : String(picked)} · Correct: {String(q.correctAnswer)}</p>
-                <p className="mt-1 flex items-start gap-1 text-xs font-bold text-muted">
-                  <Lightbulb size={13} strokeWidth={2.75} className="mt-0.5 shrink-0 text-sun-500" /><Gloss text={q.explanation} />
-                </p>
+                <div className="mt-1 flex items-start gap-1 text-xs font-bold text-muted">
+                  <Lightbulb size={13} strokeWidth={2.75} className="mt-0.5 shrink-0 text-sun-500" /><p className="min-w-0 flex-1"><Gloss text={q.explanation} /></p>
+                </div>
               </div>
             );
           })}
