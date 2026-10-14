@@ -2,7 +2,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { BookOpenText, LayoutDashboard, Users, Trophy, LogOut, Flame } from "lucide-react";
 import { useProgress, levelForXp } from "../lib/store";
 import { isSupabaseConfigured } from "../lib/supabase";
-import { PebbleMark } from "./PebbleMascot";
+import { AppIcon } from "./PebbleMascot";
 import { FlameArt, BoltArt } from "./art";
 import { cn } from "./ui";
 
@@ -30,9 +30,7 @@ const tabs = [
       <header className="sticky top-0 z-20 border-b-2 border-line bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-2.5">
           <Link to="/" className="flex items-center gap-2.5" aria-label="Pebble home">
-            <span className="grid h-11 w-11 place-items-center rounded-2xl border-b-4 border-sun-500 bg-sun-400">
-              <PebbleMark size={30} />
-            </span>
+            <AppIcon size={44} className="shadow-[0_3px_0_rgba(60,60,60,0.12)]" />
             <span>
               <span className="block text-xl leading-none font-black tracking-tight text-ink">
                 pebble
@@ -133,7 +131,7 @@ const tabs = [
       <footer className="border-t-2 border-line bg-white">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-5">
           <span className="flex items-center gap-2 text-xs font-extrabold text-muted">
-            <PebbleMark size={22} /> Pebble · Exploring Business Studies 7 · pp. 1–130 referenced in every lesson
+            <AppIcon size={22} /> Pebble · Exploring Business Studies 7 · pp. 1–130 referenced in every lesson
           </span>
           <span className="flex items-center gap-1 text-xs font-extrabold text-tang-500">
             <Flame size={13} strokeWidth={2.75} /> One pebble a day keeps forgetting away

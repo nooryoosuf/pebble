@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Button, Card, Badge, ProgressBar } from "../components/ui";
 import { EmptyArt } from "../components/art";
-import { PebbleMark } from "../components/PebbleMascot";
+import { AppIcon } from "../components/PebbleMascot";
 import { lessons, chapters, chapterById } from "../data/curriculum";
 import { useProgress } from "../lib/store";
 import { isSupabaseConfigured } from "../lib/supabase";
@@ -44,7 +44,7 @@ export default function Parent() {
     return (
       <div className="mx-auto max-w-md">
         <Card className="text-center">
-          <div className="flex justify-center"><PebbleMark size={56} /></div>
+          <div className="flex justify-center"><AppIcon size={56} /></div>
           <p className="mt-2 text-lg font-black text-slate-ink">Parent reports</p>
           <p className="text-sm font-semibold text-slate-muted">Reports here are built only from recorded activity — never estimated.</p>
           <Link to="/start"><Button variant="blue" className="mt-4 w-full">Sign in to view reports</Button></Link>
@@ -58,7 +58,7 @@ export default function Parent() {
       {/* restrained brand header */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border-2 border-line bg-white p-5">
         <div className="flex items-center gap-3">
-          <PebbleMark size={44} />
+          <AppIcon size={44} />
           <div>
             <p className="text-[11px] font-extrabold tracking-[0.14em] text-slate-muted uppercase">
               Parent dashboard · {progress.userName}
