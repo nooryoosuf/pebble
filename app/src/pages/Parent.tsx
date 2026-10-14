@@ -11,6 +11,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { Button, Card, Badge, ProgressBar } from "../components/ui";
+import ParentReport from "../components/ParentReport";
 import { EmptyArt } from "../components/art";
 import { AppIcon } from "../components/PebbleMascot";
 import { lessons, chapters, chapterById } from "../data/curriculum";
@@ -84,6 +85,8 @@ export default function Parent() {
         </Card>
       ) : (
         <div className="mt-4 space-y-3">
+          <ParentReport />
+
           {/* KPI row */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {[
