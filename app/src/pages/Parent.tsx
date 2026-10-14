@@ -85,8 +85,6 @@ export default function Parent() {
         </Card>
       ) : (
         <div className="mt-4 space-y-3">
-          <ParentReport />
-
           {/* KPI row */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {[
@@ -104,6 +102,8 @@ export default function Parent() {
               </Card>
             ))}
           </div>
+
+          <ParentReport />
 
           <div className="grid gap-3 lg:grid-cols-2">
             <Card>
