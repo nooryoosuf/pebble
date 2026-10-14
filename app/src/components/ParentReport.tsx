@@ -10,7 +10,7 @@ import {
   Footprints,
 } from "lucide-react";
 import { Card } from "./ui";
-import { chapters, lessons } from "../data/curriculum";
+import { chapters, lessons, masterLesson, isMasterComplete, isMasterUnlocked } from "../data/curriculum";
 import { useProgress } from "../lib/store";
 
 /* ─── Written parent report ──────────────────────────────────────────────────
@@ -118,6 +118,12 @@ export default function ParentReport() {
       text: `Keep momentum: start “${nextLesson.title}” next (~${nextLesson.estimatedMinutes} min).`,
       to: `/lesson/${nextLesson.lessonId}`,
       cta: "Open mission",
+    });
+  } else if (isMasterUnlocked(progress.completedLessons) && !isMasterComplete(progress.attempts)) {
+    steps.push({
+      text: `The big one is ready: all 12 missions are clear, so “${masterLesson.title}” — fresh mixed questions from every world — is unlocked.`,
+      to: `/lesson/${masterLesson.lessonId}`,
+      cta: "Open finale",
     });
   }
   const bestByLesson = new Map<string, number>();

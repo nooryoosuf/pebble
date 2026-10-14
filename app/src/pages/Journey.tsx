@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
-import { Play, Lock, Star, Trophy, Flag } from "lucide-react";
+import { Play, Lock, Star, Trophy, Flag, Crown } from "lucide-react";
 import { Card, Badge, ProgressBar } from "../components/ui";
-import { ChapterArt, Medal } from "../components/art";
+import { ChapterArt, Medal, TrophyArt } from "../components/art";
 import PebbleMascot from "../components/PebbleMascot";
-import { chapters, lessons } from "../data/curriculum";
+import { chapters, lessons, masterLesson, isMasterUnlocked, isMasterComplete } from "../data/curriculum";
 import { useProgress } from "../lib/store";
 import { cn } from "../components/ui";
 
@@ -14,6 +14,89 @@ const chapterTheme: Record<string, { band: string; bar: string; chip: string; no
   "ch-04": { band: "bg-grape-100", bar: "bg-grape-400", chip: "bg-grape-400", node: "text-grape-700", soft: "bg-grape-100/50" },
 };
 
+/* Master Chapter trail: locked until all 12 missions clear, then the capstone */
+function MasterTrail() {
+  const { progress } = useProgress();
+  const unlocked = isMasterUnlocked(progress.completedLessons);
+  const done = isMasterComplete(progress.attempts);
+  const tries = progress.attempts.filter((a) => a.lessonId === masterLesson.lessonId);
+  const best = tries.length ? Math.max(...tries.map((a) => a.scorePercent)) : null;
+
+  return (
+    <section aria-label="Master Chapter: The Final Showdown" className="mt-8">
+      <div className="overflow-hidden rounded-[2rem] border-2 border-line bg-white">
+        <div className="dot-grid flex items-center gap-4 bg-ink px-5 pt-4 pb-3 text-white">
+          <TrophyArt size={64} />
+          <div className="min-w-0 flex-1">
+            <span className="inline-block max-w-full overflow-hidden rounded-full bg-sun-400 px-2.5 py-0.5 text-[11px] font-black tracking-wider text-ellipsis whitespace-nowrap text-[#5c3d00] uppercase">
+              Master chapter · pp. 1–130
+            </span>
+            <p className="mt-1 text-xl leading-tight font-black">The Final Showdown</p>
+            <p className="mt-0.5 text-xs font-bold text-white/80">
+              {done ? `Cleared at ${best}% — legendary!` : unlocked ? "Unlocked! Fresh mixed questions from all four worlds." : `Unlocks after all 12 missions · ${progress.completedLessons.length}/12 clear`}
+            </p>
+          </div>
+          {done && <Medal tone="sun" size={52} icon={<Crown size={22} strokeWidth={2.75} />} />}
+        </div>
+        <div className="px-5 py-5 sm:px-10">
+          <div className="relative mx-auto w-full max-w-sm">
+            {!unlocked && (
+              <div className="flex w-full items-center gap-3 rounded-3xl border-2 border-dashed border-line bg-stage p-3">
+                <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border-b-4 border-[#cfc8b4] bg-[#e8e3d6] text-faint">
+                  <Lock size={20} strokeWidth={2.75} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[15px] font-black text-muted">??? · Mystery finale</span>
+                  <span className="block truncate text-xs font-bold text-faint">Clear every mission to reveal it</span>
+                </span>
+              </div>
+            )}
+            {unlocked && (
+              <div className="relative">
+                {!done && (
+                  <div className="animate-bob absolute -top-9 left-1/2 z-10 -translate-x-1/2">
+                    <span className="rounded-xl border-2 border-sun-500 bg-white px-3 py-1 text-xs font-black tracking-wider text-sun-700 uppercase shadow-sm">
+                      Final
+                    </span>
+                    <span className="mx-auto block h-2 w-2 rotate-45 border-r-2 border-b-2 border-sun-500 bg-white" />
+                  </div>
+                )}
+                <Link
+                  to={`/lesson/${masterLesson.lessonId}`}
+                  aria-label={`Final Showdown${done ? ", cleared" : ", unlocked"}${best !== null ? `, best ${best} percent` : ""}`}
+                  className={cn(
+                    "duo-press flex w-full items-center gap-3 rounded-3xl border-2 bg-white p-3 text-left",
+                    done ? "border-line" : "border-sun-400 shadow-[0_4px_0_#ffe7ad]",
+                  )}
+                >
+                  <span className={cn(
+                    "grid h-14 w-14 shrink-0 place-items-center rounded-2xl border-b-4 text-white",
+                    done ? "border-sun-500 bg-sun-400" : "border-ink bg-ink",
+                  )}>
+                    {done ? <Star size={24} strokeWidth={2.75} fill="currentColor" /> : <Crown size={24} strokeWidth={2.75} />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] font-black text-ink">Final · {masterLesson.title}</span>
+                    <span className="block truncate text-xs font-bold text-muted">
+                      8 fresh questions · ~{masterLesson.estimatedMinutes} min
+                      {best !== null && ` · best ${best}%`}
+                    </span>
+                  </span>
+                  {!done && <PebbleMascot mood="star" size={44} />}
+                </Link>
+              </div>
+            )}
+          </div>
+          <div className="flex justify-center pt-3">
+            <span className={cn("flex items-center gap-1.5 rounded-full border-2 px-3 py-1 text-[11px] font-black tracking-wider uppercase", done ? "border-sun-500 bg-sun-100 text-sun-700" : "border-line bg-stage text-faint")}>
+              <Flag size={12} strokeWidth={3} /> {done ? "Capstone conquered!" : unlocked ? "The ultimate test awaits" : "???"}
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 /* gentle side-to-side offsets so the trail winds like a game map */
 const offsets = ["sm:translate-x-0", "sm:translate-x-10", "sm:translate-x-16", "sm:translate-x-10", "sm:translate-x-0", "sm:-translate-x-10", "sm:-translate-x-16", "sm:-translate-x-10"];
 
@@ -124,6 +207,9 @@ export default function Journey() {
           );
         })}
       </div>
+
+      {/* Master Chapter — capstone, locked until all 12 missions clear */}
+      <MasterTrail />
 
       <Card className="mt-8 flex items-center gap-3 border-dashed">
         <PebbleMascot mood="reading" size={64} />

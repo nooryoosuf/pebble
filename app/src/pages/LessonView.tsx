@@ -20,9 +20,9 @@ import {
 } from "lucide-react";
 import PebbleMascot from "../components/PebbleMascot";
 import { Button, Card, Badge, ProgressBar, ScoreRing } from "../components/ui";
-import { ConfettiBurst, EmptyArt } from "../components/art";
+import { ConfettiBurst, EmptyArt, TrophyArt } from "../components/art";
 import { Gloss } from "../components/Gloss";
-import { lessonById, chapterById, topicById, autoMarkableCount } from "../data/curriculum";
+import { lessonById, chapterById, topicById, autoMarkableCount, masterLesson, isMasterUnlocked } from "../data/curriculum";
 import { useProgress, bandFor } from "../lib/store";
 import { cn } from "../components/ui";
 
@@ -54,6 +54,9 @@ export default function LessonView() {
     [progress.attempts, lesson],
   );
 
+  const isMaster = !!lesson && lesson.lessonId === masterLesson.lessonId;
+  const masterLocked = isMaster && !!lesson && !isMasterUnlocked(progress.completedLessons);
+
   if (!lesson) {
     return (
       <div className="mx-auto max-w-md text-center">
@@ -62,6 +65,21 @@ export default function LessonView() {
           <p className="mt-2 text-lg font-black">That pebble rolled away</p>
           <p className="text-sm font-bold text-muted">Let's head back to the trail and pick another mission.</p>
           <Link to="/journey"><Button className="mt-3 w-full">Back to journey</Button></Link>
+        </Card>
+      </div>
+    );
+  }
+
+  if (masterLocked) {
+    return (
+      <div className="mx-auto max-w-md text-center">
+        <Card>
+          <div className="flex justify-center"><TrophyArt size={84} /></div>
+          <p className="mt-2 text-lg font-black">The finale is still sealed</p>
+          <p className="text-sm font-bold text-muted">
+            Clear all 12 missions first ({progress.completedLessons.length}/12 so far) — then the Final Showdown unlocks with fresh mixed questions.
+          </p>
+          <Link to="/journey"><Button className="mt-4 w-full">Back to the trail</Button></Link>
         </Card>
       </div>
     );
@@ -111,12 +129,14 @@ export default function LessonView() {
       <div className="mt-2 flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex flex-wrap gap-1.5">
-            <Badge tone="sky">{chapter?.title}</Badge>
-            <Badge tone="neutral">Lesson {lesson.topicId.replace("top-", "")} · pp. {lesson.pages.start}–{lesson.pages.end}</Badge>
+            <Badge tone="sky">{isMaster ? "Master Chapter" : chapter?.title}</Badge>
+            <Badge tone="neutral">{isMaster ? "Capstone · pp. 1–130" : `Lesson ${lesson.topicId.replace("top-", "")} · pp. ${lesson.pages.start}–${lesson.pages.end}`}</Badge>
           </div>
           <h1 className="mt-1.5 text-3xl font-black tracking-tight text-ink">{lesson.title}</h1>
           <p className="mt-1 text-xs font-bold text-muted">
-            Goals: {topic?.learningObjectives.map((o) => o.objectiveId).join(" · ")}
+            {isMaster
+              ? "Mixed capstone across Chapters 1–4 · fresh wording, new numbers"
+              : <>Goals: {topic?.learningObjectives.map((o) => o.objectiveId).join(" · ")}</>}
             {prevAttempts.length > 0 && ` · ${prevAttempts.length} previous attempt${prevAttempts.length > 1 ? "s" : ""}, best ${Math.max(...prevAttempts.map((a) => a.scorePercent))}%`}
           </p>
         </div>

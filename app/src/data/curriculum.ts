@@ -938,6 +938,7 @@ export const consistencyBadges = [
 ];
 
 export function lessonById(id: string): Lesson | undefined {
+  if (id === masterLesson.lessonId) return masterLesson;
   return lessons.find((l) => l.lessonId === id);
 }
 export function topicById(id: string): Topic | undefined {
@@ -949,4 +950,152 @@ export function chapterById(id: string): Chapter | undefined {
 }
 export function autoMarkableCount(lesson: Lesson): number {
   return lesson.mcqs.length + lesson.trueFalse.length;
+}
+
+// ─── Master Chapter (capstone) ───────────────────────────────────────────────
+// Unlocks when all 12 topic lessons are complete. Same concepts as the main
+// chapters, but every question is reworded with fresh numbers, contexts and
+// answer orders — never a repeat. Questions stay tagged to their real
+// objectives (lo-*) so capstone evidence strengthens genuine mastery.
+
+export const masterLesson: Lesson = {
+  lessonId: "lesson-master",
+  topicId: "top-M",
+  chapterId: "ch-master",
+  title: "The Final Showdown",
+  pages: { start: 1, end: 130 },
+  estimatedMinutes: 30,
+  keyTerms: [
+    { term: "Opportunity Cost", definition: "The value of the next best alternative foregone when an economic choice is made." },
+    { term: "Gross Profit", definition: "Profit calculated as sales revenue minus cost of goods sold." },
+    { term: "Mixed Economy", definition: "An economy in which both the private and public sectors play an important role." },
+    { term: "Limited Liability", definition: "Legal protection where shareholders' liability for business debts is restricted to the value of their share investment." },
+  ],
+  learn: [
+    {
+      heading: "World 1 in 60 seconds",
+      body: [
+        "Scarcity means unlimited wants meet limited resources — so every choice has an opportunity cost (the next best thing you gave up, not the cash you paid).",
+        "Needs (water, food, shelter) come before wants. Resources split into natural (renewable vs non-renewable), human, and manufactured — combined as the four factors: land earns rent, labour earns wages, capital earns interest, enterprise earns profit.",
+        "Stakeholders inside the firm (owners, managers, workers) and outside it (customers, suppliers, banks, government, community) all pull in different directions.",
+      ],
+      notebookPrompt: "Without looking: write the four factors with one island example and reward each.",
+    },
+    {
+      heading: "World 2 in 60 seconds",
+      body: [
+        "Bookkeeping records; accounting interprets. Everything balances on Assets = Capital + Liabilities.",
+        "Double entry: every debit has an equal credit. Assets and expenses grow on the debit side; liabilities, capital and revenue grow on the credit side.",
+        "Gross Profit = Revenue − Cost of Goods Sold. Net Profit = Gross Profit + other income − all operating expenses. Never confuse revenue with profit.",
+      ],
+      notebookPrompt: "Write the accounting equation and the two profit formulas from memory, then check.",
+    },
+    {
+      heading: "Worlds 3 and 4 in 60 seconds",
+      body: [
+        "Every economy answers what, how and for whom. The Maldives is a mixed economy: private tourism, fishing and shops beside public services and state enterprises.",
+        "Primary extracts, secondary makes, tertiary serves. Job makes one-offs, batch makes groups, flow mass-produces. Productivity = output ÷ input — more output is not automatically more productivity, and extra workers on fixed space eventually hit diminishing returns.",
+        "Promote with advertising, sales offers, personal selling or PR. Organise as sole trader or partnership (unlimited liability) or Ltd/Plc (limited liability, separate legal entity).",
+      ],
+      notebookPrompt: "Name one Maldivian example for each production sector and each promotion method.",
+    },
+    {
+      heading: "How the showdown works",
+      body: [
+        "Eight fresh questions — two from each world — plus one calculation write-up and one boss scenario. Same skills, brand-new numbers and stories.",
+        "Read each stem slowly, eliminate the tempting wrong answers first, and show your working on the numbers. 80%+ clears the capstone.",
+      ],
+    },
+  ],
+  flashcards: [
+    { id: "fc-m-01", front: "A resort has one speedboat but 40 guests want trips. What economic problem is this?", back: "Scarcity — unlimited wants but limited resources — forcing choice and an opportunity cost." },
+    { id: "fc-m-02", front: "A shop holds assets of MVR 240,000 and owes MVR 70,000. What is its capital, and how do you know?", back: "MVR 170,000. From Assets = Capital + Liabilities: Capital = 240,000 − 70,000." },
+    { id: "fc-m-03", front: "Why is the Maldives described as a mixed economy?", back: "Private firms run tourism, fishing and retail while the government provides services, utilities and state-owned enterprises." },
+    { id: "fc-m-04", front: "Two cousins open a café as a partnership and borrow heavily. What risk do they personally carry?", back: "Unlimited liability — if the business cannot pay, creditors can claim their personal assets." },
+  ],
+  mcqs: [
+    {
+      id: "mcq-m-01",
+      objectiveId: "lo-1.1.1",
+      question: "A family camping on an uninhabited island can carry only one small bag each. Which item is a human need?",
+      options: { A: "Portable speaker", B: "Sealed drinking water", C: "Pack of playing cards", D: "Camera" },
+      correctAnswer: "B",
+      explanation: "Only sealed water is essential for survival over the trip; the rest improve comfort but are wants.",
+      difficulty: "Easy",
+      skillTag: "Knowledge & Understanding",
+    },
+    {
+      id: "mcq-m-02",
+      objectiveId: "lo-2.1.3",
+      question: "A dive shop holds assets of MVR 240,000 and owes MVR 70,000 to suppliers and the bank. What is the owner's capital?",
+      options: { A: "MVR 310,000", B: "MVR 70,000", C: "MVR 170,000", D: "MVR 240,000" },
+      correctAnswer: "C",
+      explanation: "Capital = Assets − Liabilities = 240,000 − 70,000 = MVR 170,000.",
+      difficulty: "Easy",
+      skillTag: "Calculation",
+    },
+    {
+      id: "mcq-m-03",
+      objectiveId: "lo-3.3.1",
+      question: "Which of these activities belongs to the primary sector?",
+      options: { A: "Bottling chilli paste in a kitchen", B: "Harvesting sea cucumber for export", C: "Running a beach café", D: "Repairing boat engines" },
+      correctAnswer: "B",
+      explanation: "Harvesting sea cucumber gathers a raw natural resource directly — primary sector. The rest process or serve.",
+      difficulty: "Easy",
+      skillTag: "Classification",
+    },
+    {
+      id: "mcq-m-04",
+      objectiveId: "lo-4.1.2",
+      question: "Two friends register an Ltd with MVR 60,000. It later fails owing MVR 200,000. What can creditors claim?",
+      options: { A: "Their family homes and savings", B: "Only the MVR 60,000 invested — personal assets are protected", C: "Nothing at all — all debts vanish", D: "A share of their future salaries forever" },
+      correctAnswer: "B",
+      explanation: "Limited liability caps their loss at the amount invested; the company still owes its debts, but homes and savings are safe.",
+      difficulty: "Medium",
+      skillTag: "Understanding",
+    },
+  ],
+  trueFalse: [
+    { id: "tf-m-01", objectiveId: "lo-1.2.2", statement: "Profit is the economic reward paid for labour.", correctAnswer: false, explanation: "False. Labour earns wages or salaries; profit is the reward for enterprise (risk-taking organisation).", difficulty: "Easy", skillTag: "Knowledge" },
+    { id: "tf-m-02", objectiveId: "lo-2.2.1", statement: "Buying MVR 5,000 of inventory with cash is recorded as debit Inventory and credit Cash.", correctAnswer: true, explanation: "True. Inventory (an asset) rises, so it is debited; cash (an asset) falls, so it is credited.", difficulty: "Medium", skillTag: "Application" },
+    { id: "tf-m-03", objectiveId: "lo-3.4.1", statement: "A workshop that doubles its output by doubling its workers has doubled its productivity.", correctAnswer: false, explanation: "False. Productivity is output per worker — here it is unchanged. Output rose, productivity did not.", difficulty: "Medium", skillTag: "Evaluation" },
+    { id: "tf-m-04", objectiveId: "lo-4.2.2", statement: "After privatisation, a business is still owned by the government.", correctAnswer: false, explanation: "False. Privatisation transfers ownership from the public sector to private owners.", difficulty: "Easy", skillTag: "Knowledge" },
+  ],
+  shortAnswer: [
+    {
+      id: "sa-m-01",
+      objectiveId: "lo-2.3.1",
+      question: "A shop reports revenue of MVR 120,000, opening inventory MVR 15,000, purchases MVR 70,000, closing inventory MVR 20,000 and operating expenses MVR 30,000. Calculate the gross profit and the net profit.",
+      difficulty: "Medium",
+      rubric: {
+        totalMarks: 4,
+        criteria: [
+          { mark: 1, description: "Correctly computes Cost of Goods Sold as 15,000 + 70,000 − 20,000 = MVR 65,000." },
+          { mark: 1, description: "Correctly computes Gross Profit as 120,000 − 65,000 = MVR 55,000." },
+          { mark: 1, description: "Correctly computes Net Profit as 55,000 − 30,000 = MVR 25,000." },
+          { mark: 1, description: "States the formulas used for COGS, Gross Profit and Net Profit." },
+        ],
+      },
+    },
+  ],
+  challenge: {
+    challengeId: "bc-M",
+    title: "Coral Gift Shop Master Plan",
+    context: "You are opening a gift shop near a jetty selling dried-tuna packs and woven mats to tourists and locals.",
+    task: "Name the production sector for each product line, identify one factor of production you will use with its reward, choose one promotion method with a reason, and recommend sole trader or private limited company (Ltd) with a justification.",
+    masteryCriteria: "Both sectors correct, one valid factor with its reward, a fitting promotion choice with reasoning, and an ownership recommendation justified with liability and capital arguments.",
+  },
+  misconceptions: [
+    { id: "misc-m-01", misconception: "Revenue and profit mean the same thing.", intervention: "Revenue is total sales coming in; profit is what remains after costs are deducted — a busy shop can still make a loss." },
+  ],
+};
+
+/** True when every topic lesson is complete (band progress/practice). */
+export function isMasterUnlocked(completedLessons: string[]): boolean {
+  return lessons.every((l) => completedLessons.includes(l.lessonId));
+}
+
+/** True when the capstone itself is cleared (band progress/practice). */
+export function isMasterComplete(attempts: { lessonId: string; band: string }[]): boolean {
+  return attempts.some((a) => a.lessonId === masterLesson.lessonId && a.band !== "revision");
 }

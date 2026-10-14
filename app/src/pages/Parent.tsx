@@ -14,7 +14,7 @@ import { Button, Card, Badge, ProgressBar } from "../components/ui";
 import ParentReport from "../components/ParentReport";
 import { EmptyArt } from "../components/art";
 import { AppIcon } from "../components/PebbleMascot";
-import { lessons, chapters, chapterById } from "../data/curriculum";
+import { lessons, chapters, chapterById, masterLesson } from "../data/curriculum";
 import { useProgress } from "../lib/store";
 import { isSupabaseConfigured } from "../lib/supabase";
 
@@ -218,11 +218,12 @@ export default function Parent() {
                 </thead>
                 <tbody className="tabular-nums">
                   {[...attempts].reverse().slice(0, 12).map((a, i) => {
-                    const l = lessons.find((x) => x.lessonId === a.lessonId);
+                    const l = lessons.find((x) => x.lessonId === a.lessonId) ?? (a.lessonId === masterLesson.lessonId ? masterLesson : undefined);
+                    const chLabel = l?.chapterId === masterLesson.chapterId ? "Master Chapter" : chapterById(l?.chapterId ?? "")?.title;
                     return (
                       <tr key={a.id} className={i % 2 === 0 ? "border-t border-line bg-stage/60" : "border-t border-line"}>
                         <td className="py-2 pr-3 font-semibold whitespace-nowrap">{a.dateISO.slice(0, 10)}</td>
-                        <td className="py-2 pr-3 font-bold">{l?.title} <span className="font-semibold text-slate-muted">({chapterById(l?.chapterId ?? "")?.title})</span></td>
+                        <td className="py-2 pr-3 font-bold">{l?.title} <span className="font-semibold text-slate-muted">({chLabel})</span></td>
                         <td className="py-2 pr-3 text-right font-black">{a.scorePercent}% <span className="font-semibold text-slate-muted">({a.autoCorrect}/{a.autoTotal})</span></td>
                         <td className="py-2 pr-3">
                           <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-black ${a.band === "progress" ? "bg-mint-100 text-mint-800" : a.band === "practice" ? "bg-tang-100 text-tang-700" : "bg-coral-100 text-coral-700"}`}>

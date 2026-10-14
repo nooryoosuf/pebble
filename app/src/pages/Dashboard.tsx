@@ -12,11 +12,12 @@ import {
   Calculator,
   Ship,
   Building2,
+  Crown,
 } from "lucide-react";
 import PebbleMascot from "../components/PebbleMascot";
 import { Button, Card, Badge, ProgressBar } from "../components/ui";
-import { ChapterArt, AchievementBadge, FlameArt, BoltArt } from "../components/art";
-import { lessons, chapterById, milestones, specialBadges, consistencyBadges } from "../data/curriculum";
+import { ChapterArt, AchievementBadge, FlameArt, BoltArt, TrophyArt } from "../components/art";
+import { lessons, chapterById, milestones, specialBadges, consistencyBadges, masterLesson, isMasterComplete } from "../data/curriculum";
 import { useProgress, levelForXp } from "../lib/store";
 
 const chapterIcon: Record<string, typeof Sprout> = {
@@ -39,7 +40,9 @@ export default function Dashboard() {
   const lastAttempt = progress.attempts[progress.attempts.length - 1];
   const doneCount = progress.completedLessons.length;
   const weekCount = progress.studyDates.slice(-7).length;
-  const ChapterGlyph = chapterIcon[todayLesson.chapterId] ?? Sprout;
+  const ChapterGlyph = chapterIcon[todayLesson.chapterId] ?? Crown;
+  const isMasterDay = todayLesson.lessonId === masterLesson.lessonId;
+  const masterDone = isMasterComplete(progress.attempts);
 
   if (!isLoggedIn) {
     return (
@@ -77,7 +80,7 @@ export default function Dashboard() {
                 {todayLesson.title}
               </h2>
               <div className="mt-2 flex flex-wrap gap-1.5">
-                <Badge tone="sun" className="border-white/60 bg-white text-mint-800">{chapterById(todayLesson.chapterId)?.title}</Badge>
+                <Badge tone="sun" className="border-white/60 bg-white text-mint-800">{isMasterDay ? "Master Chapter" : chapterById(todayLesson.chapterId)?.title}</Badge>
                 <Badge tone="sun" className="border-white/60 bg-white/90 text-ink">pp. {todayLesson.pages.start}–{todayLesson.pages.end}</Badge>
                 <Badge tone="sun" className="border-white/60 bg-white/90 text-ink">~{todayLesson.estimatedMinutes} min</Badge>
               </div>
@@ -91,7 +94,7 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="hidden w-44 shrink-0 rounded-3xl bg-white/20 p-2 sm:block">
-              <ChapterArt chapterId={todayLesson.chapterId} className="h-auto w-full" />
+              {isMasterDay ? <TrophyArt size={120} /> : <ChapterArt chapterId={todayLesson.chapterId} className="h-auto w-full" />}
             </div>
           </div>
           <div className="mt-4 flex items-center gap-3 rounded-2xl bg-white/20 p-3 backdrop-blur-[1px]">
@@ -99,6 +102,18 @@ export default function Dashboard() {
             <p className="text-sm font-bold">{mascotLine(lastAttempt ? lastAttempt.scorePercent : null)}</p>
           </div>
         </section>
+
+        {/* Master Chapter unlock banner */}
+        {isMasterDay && !masterDone && (
+          <Link to={`/lesson/${masterLesson.lessonId}`} className="duo-press flex items-center gap-3 rounded-[2rem] border-b-8 border-sun-500 bg-ink p-4 text-white">
+            <TrophyArt size={56} />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[11px] font-black tracking-[0.16em] text-sun-300 uppercase">Secret finale unlocked</span>
+              <span className="block truncate text-lg font-black">The Final Showdown — all worlds, fresh questions</span>
+            </span>
+            <ArrowRight size={20} strokeWidth={3} className="shrink-0 text-sun-400" />
+          </Link>
+        )}
 
         {/* stats trio — soft monotone translucent tiles */}
         <div className="grid grid-cols-3 gap-2.5">

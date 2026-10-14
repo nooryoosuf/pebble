@@ -11,7 +11,10 @@ import {
   autoMarkableCount,
   chapters,
   consistencyBadges,
+  isMasterComplete,
+  isMasterUnlocked,
   lessons,
+  masterLesson,
   milestones,
   specialBadges,
   type Lesson,
@@ -227,7 +230,8 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
 
   const recordAttempt = useCallback(
     (input: Omit<Attempt, "id" | "dateISO" | "scorePercent" | "autoCorrect" | "autoTotal" | "xpEarned" | "band"> & { dateISO?: string }) => {
-      const lesson = lessons.find((l) => l.lessonId === input.lessonId)!;
+      const lesson = lessons.find((l) => l.lessonId === input.lessonId) ?? (input.lessonId === masterLesson.lessonId ? masterLesson : undefined);
+      if (!lesson) throw new Error(`Unknown lesson: ${input.lessonId}`);
       const { correct, total, percent } = scoreLesson(lesson, input.mcqAnswers, input.tfAnswers);
       const band = bandFor(percent);
 
@@ -347,8 +351,12 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<StoreCtx>(() => {
-    // today's lesson = first incomplete in curriculum order
-    const todayLesson = lessons.find((l) => !progress.completedLessons.includes(l.lessonId)) ?? lessons[lessons.length - 1];
+    // today's lesson = first incomplete in curriculum order; the capstone
+    // becomes today's mission once all 12 topic lessons are complete.
+    const masterDone = isMasterComplete(progress.attempts);
+    const todayLesson =
+      lessons.find((l) => !progress.completedLessons.includes(l.lessonId)) ??
+      (!masterDone && isMasterUnlocked(progress.completedLessons) ? masterLesson : lessons[lessons.length - 1]);
 
     // adaptive revision: weakest objectives → their lessons
     const weak = Object.entries(progress.objectiveMastery)
