@@ -37,7 +37,7 @@ export default function LessonView() {
   const { id } = useParams();
   const nav = useNavigate();
   const lesson = lessonById(id ?? "");
-  const { recordAttempt, markFlashcardsSeen, progress } = useProgress();
+  const { recordAttempt, markFlashcardsSeen, progress, canLearn } = useProgress();
 
   const [step, setStep] = useState(0);
   const [flipped, setFlipped] = useState<Record<string, boolean>>({});
@@ -441,7 +441,7 @@ export default function LessonView() {
 
               <div className="flex gap-2">
                 <Button variant="white" onClick={() => setStep(1)}><ArrowLeft size={15} strokeWidth={3} /> Review</Button>
-                <Button variant="blue" className="flex-1 text-base" disabled={totalAuto > 0 && answeredAuto < totalAuto} onClick={submit}>
+                <Button variant="blue" className="flex-1 text-base" disabled={(totalAuto > 0 && answeredAuto < totalAuto) || !canLearn} onClick={submit} title={!canLearn ? "Only student accounts record missions" : undefined}>
                   {totalAuto > 0 && answeredAuto < totalAuto
                     ? `Answer all ${totalAuto} quick questions (${answeredAuto}/${totalAuto})`
                     : <>See my results <PartyPopper size={17} strokeWidth={2.5} /></>}

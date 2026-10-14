@@ -1,75 +1,80 @@
 # Pebble 🪨 — Daily Business Studies · Grade 7
 
-A warm, gamified daily-learning platform built from the approved
-*Exploring Business Studies 7* content in this folder.
+A playful, installable daily-learning platform built from the approved
+*Exploring Business Studies 7* content in this folder. Each family member has
+their own login; students learn, parents follow — every family sees only their
+own data.
+
+**Live:** your Cloudflare Pages subdomain (see *Hosting* below)
+**Repo:** https://github.com/nooryoosuf/pebble
 
 ## What's here
 
 | Path | What it is |
 |---|---|
-| `app/` | The React + TypeScript + Vite application |
-| `chapter_*_content_file.md` | Approved per-chapter content (notes, flashcards, MCQs, rubrics, challenges) — **source of truth** |
-| `curriculum_map_data.md` | Curriculum map with stable IDs (`ch-*`, `top-*`, `lo-*`) + textbook pages |
-| `achievements_and_milestones.md` | Milestones (`ms-*`) + special badges (`bdg-*`) |
-| `mcq_question_bank_csv_export.md` | MCQ export (same IDs as chapters) |
-| `exploring_business_studies_7_complete_lesson_notes.md` | Full lesson notes behind the Learn step |
+| `app/` | The React + TypeScript + Vite application (PWA) |
+| `app/src/data/curriculum.ts` | 12 topic-lessons + Master capstone, stable IDs, textbook page refs |
+| `app/supabase/migrations/` | `001` core schema + RLS + server grading · `002` capstone keys · `003` multi-family auth · `004` challenge days |
+| `app/supabase/functions/create-student/` | Edge Function: parents create linked child logins |
+| `chapter_*_content_file.md`, `curriculum_map_data.md`, … | Approved source content (source of truth) |
 | `704639358-Exploring-Business-Studies-SB7.pdf` | Printed textbook (verification) |
 
-## Quick start (demo mode — no keys needed)
+## How accounts work (multi-family)
+
+- **Students** sign up / sign in with email + password and get missions, streaks, medals. Progress saves to their account and syncs across devices (offline work is cached and uploaded later).
+- **Parents** sign up with their own email, then **create their child's login** from the parent area (name + email + password). The child is linked automatically.
+- **Isolation:** Supabase Row Level Security guarantees students touch only their own rows and parents read only their linked children. Roles are assigned at signup and locked — a student can never promote themselves. Answer keys and grading live server-side (`grade_attempt` trigger); the app never trusts client scores.
+- Another family signing up gets a completely separate space — same app, partitioned data.
+
+## Backend setup (once, ~15 min)
+
+1. Create a project at https://supabase.com → copy the **Project URL** and **anon key**.
+2. **SQL editor** → run `app/supabase/migrations/001_pebble_schema.sql`, then `002`, `003`, `004` in order.
+3. **Authentication → Sign In / Providers → Email**: enable it. For classroom simplicity you may **turn off “Confirm email”** so new logins work immediately.
+4. **Edge Functions**: deploy the child-creator and give it the secret key —
+   ```bash
+   npm i -g supabase
+   supabase login
+   supabase link --project-ref YOUR_PROJECT_REF
+   supabase functions deploy create-student --no-verify-jwt
+   supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+   ```
+   (Dashboard → Project Settings → API for the service_role key. It never goes in the app.)
+5. Copy `app/.env.example` to `app/.env`, fill in the URL + anon key, restart.
+
+## Hosting on Cloudflare Pages + your subdomain
+
+1. Push this repo to GitHub (already at `nooryoosuf/pebble`).
+2. Cloudflare dashboard → **Workers & Pages → Create → Pages → Connect to Git**:
+   - Project name: `pebble` · Framework preset: **Vite**
+   - Build command: `npm run build` · Output directory: `app/dist`
+   - **Root directory: `app`** (so `package.json` is found)
+   - Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+3. **Custom domain**: Pages project → Custom domains → *Set up a custom domain* → enter e.g. `pebble.yourdomain.com`. If your domain already uses Cloudflare DNS this is one click; otherwise add the shown `CNAME` at your registrar.
+4. SPA routing works via `app/public/_redirects` (`/* /index.html 200`); HTTPS is automatic.
+
+## Install as an app (PWA)
+
+The build ships a manifest + service worker (auto-updating): on Android (Chrome) use *⋮ → Add to Home screen / Install app*; on iPhone (Safari) use *Share → Add to Home Screen*. App shell, illustrations and fonts keep working offline; lesson progress made offline syncs when back online.
+
+## Local development
 
 ```powershell
 cd app
 npm.cmd install
-npm.cmd run dev
+Copy-Item .env.example .env   # then fill in real Supabase keys
+npm.cmd run dev               # http://localhost:5173/
 ```
 
-Open the printed URL (usually http://localhost:5173). Pick a name on **Start**,
-work through **Today's pebble** (Learn → Review → Practice → Results), revisit
-anything from **Journey**, try the **Challenge**, and open the **Parent** area
-for real-activity reports. Progress saves in `localStorage`; a banner says
-*Demo mode* until Supabase is configured.
-
-## Supabase setup (optional sync + auth)
-
-1. Create a project at https://supabase.com, then run
-   `app/supabase/migrations/001_pebble_schema.sql` in the SQL editor.
-   It creates `profiles`, `parent_links`, `answer_keys`, `attempts`,
-   `objective_mastery`, `earned_badges`, `study_days`, enables RLS, and adds a
-   `grade_attempt` trigger so **scores/XP/bands are computed server-side** —
-   client-submitted scores are ignored.
-2. Copy `app/.env.example` to `app/.env` and fill in:
-   `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (anon key only — never the
-   service_role secret).
-3. Restart the dev server. The demo banner disappears when keys are detected.
-
-Seed the `answer_keys` table with the IDs in the migration (already included);
-they mirror the chapter content files exactly.
-
-## Architecture
-
-- **Frontend:** React 19 + TS + Tailwind v4, `react-router-dom`, framer-motion,
-  lucide icons, hand-rolled shadcn-style UI (`app/src/components/ui.tsx`).
-- **Data:** `app/src/data/curriculum.ts` — 4 chapters → 12 topic-lessons with
-  preserved IDs + page refs; flashcards, MCQs, true/false, rubric short answers,
-  business scenarios, misconceptions, milestones.
-- **State:** `app/src/lib/store.tsx` — attempts, XP (participation + performance),
-  streaks, **mastery tracked separately** (≥80% across 2+ attempts per objective;
-  clicking through can't fake it), badges, goals, adaptive revision.
-- **Backend:** Supabase Postgres + RLS (students see own rows; parents see only
-  linked students). Demo fallback = clearly labelled localStorage mode.
-
-## Credits
-
-- World illustrations: [unDraw](https://undraw.co) scenes by Katerina
-  Limpitsouni (free for commercial use), vendored via the MIT-licensed
-  [`react-undraw-illustrations`](https://github.com/GraemeFulton/react-undraw-illustrations)
-  package and tinted to each world's palette (`app/src/assets/illustrations/`).
+Without keys the app boots to a “Backend not connected” state instead of fake data — add keys to develop the full flow.
 
 ## Key flows to test
 
-1. Start → Dashboard shows today's lesson, streak, XP, badges.
-2. Lesson: Learn → flip flashcards → answer all practice Qs → Results with
-   explanations → XP + mastery update → retry changes best score.
-3. Score <50% suggests guided revision; 50–79% practice; 80%+ progress.
-4. Parent dashboard shows only recorded attempts (empty state if none).
-5. `npm.cmd run build` passes.
+1. Parent sign-up → parent area → create child login → sign child in (separate browser/incognito) → complete a lesson.
+2. Parent report shows the child's real attempts, written report, and working goal setter.
+3. A second family signing up sees none of the first family's data.
+4. `npm.cmd run build` passes; `app/dist` contains `manifest.webmanifest`, `sw.js`, `_redirects`.
+
+## Credits
+
+- World illustrations: [unDraw](https://undraw.co) scenes by Katerina Limpitsouni (free for commercial use), vendored via the MIT-licensed [`react-undraw-illustrations`](https://github.com/GraemeFulton/react-undraw-illustrations) package (`app/src/assets/illustrations/`).

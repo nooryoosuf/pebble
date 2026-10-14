@@ -10,7 +10,7 @@ import { useProgress } from "../lib/store";
 import { cn } from "../components/ui";
 
 export default function Challenge() {
-  const { progress, weeklyRevisionSet, completeChallenge } = useProgress();
+  const { progress, weeklyRevisionSet, completeChallenge, accountRole } = useProgress();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [done, setDone] = useState(false);
 
@@ -28,6 +28,17 @@ export default function Challenge() {
 
   const correct = items.filter((i) => (answers[i.q.id] ?? "").toUpperCase() === i.q.correctAnswer).length;
   const pct = items.length ? Math.round((correct / items.length) * 100) : 0;
+
+  if (accountRole === "parent") {
+    return (
+      <div className="mx-auto max-w-md">
+        <Card className="text-center">
+          <PebbleMascot mood="happy" message="Showdowns belong to student accounts — yours is for reports!" />
+          <Link to="/parent"><Button className="mt-4 w-full">Open parent reports</Button></Link>
+        </Card>
+      </div>
+    );
+  }
 
   if (progress.attempts.length === 0) {
     return (

@@ -1,0 +1,8 @@
+[project]
+name = "pebble"
+
+[functions.create-student]
+enabled = true
+verify_jwt = false
+# Note: verify_jwt is off because the function validates the caller's JWT
+# itself (it must distinguish parent vs student roles, which the gateway can't).

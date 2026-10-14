@@ -36,6 +36,9 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          # Project site lives under /pebble/ (Cloudflare/subdomain builds use "/")
+          PAGES_BASE: /pebble/
 
       - name: SPA fallback for client-side routing
         run: cp dist/index.html dist/404.html

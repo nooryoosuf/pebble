@@ -46,8 +46,8 @@ export default function ParentReport() {
   const attempts = progress.attempts;
   if (attempts.length === 0) return null;
 
-  const name = progress.role === "parent" ? "your child" : progress.userName || "your child";
-  const possessive = progress.role === "parent" ? "your child's" : `${progress.userName || "their"}'s`;
+  const name = progress.userName || "your child";
+  const possessive = `${progress.userName || "their"}'s`;
   const avg = Math.round(attempts.reduce((s, a) => s + a.scorePercent, 0) / attempts.length);
 
   const verdict =

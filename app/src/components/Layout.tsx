@@ -1,14 +1,40 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { BookOpenText, LayoutDashboard, Users, Trophy, CircleUserRound, LogOut, Flame } from "lucide-react";
+import { BookOpenText, LayoutDashboard, Users, Trophy, CircleUserRound, LogOut, Flame, CloudCheck, CloudOff, Loader2 } from "lucide-react";
 import { useProgress, levelForXp } from "../lib/store";
-import { isSupabaseConfigured } from "../lib/supabase";
 import { AppIcon } from "./PebbleMascot";
 import { CelebrationOverlay } from "./BadgeOverlays";
 import { FlameArt, BoltArt } from "./art";
 import { cn } from "./ui";
 
+function SyncDot() {
+  const { sync, retrySync } = useProgress();
+  if (sync.mode === "saved") {
+    return (
+      <span className="flex items-center gap-1 rounded-xl bg-mint-50 px-2 py-1 text-[11px] font-black text-mint-700" title="Progress saved to your account">
+        <CloudCheck size={14} strokeWidth={2.75} /> Saved
+      </span>
+    );
+  }
+  if (sync.mode === "saving") {
+    return (
+      <span className="flex items-center gap-1 rounded-xl bg-sky-100 px-2 py-1 text-[11px] font-black text-sky-700" title="Saving progress">
+        <Loader2 size={14} strokeWidth={2.75} className="animate-spin" /> Saving
+      </span>
+    );
+  }
+  return (
+    <button
+      onClick={retrySync}
+      className="flex cursor-pointer items-center gap-1 rounded-xl bg-tang-100 px-2 py-1 text-[11px] font-black text-tang-700"
+      title="You're offline — progress is kept on this device and will sync. Tap to retry."
+    >
+      <CloudOff size={14} strokeWidth={2.75} /> Offline — tap to retry
+    </button>
+  );
+}
+
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { progress, logout, isLoggedIn } = useProgress();
+  const { progress, signOut, isLoggedIn, accountRole, accountName, authStatus } = useProgress();
   const nav = useNavigate();
   const { level } = levelForXp(progress.xp);
 
@@ -44,7 +70,7 @@ const tabs = [
           </Link>
 
           <div className="flex items-center gap-2">
-            {isLoggedIn && progress.role === "student" && (
+            {isLoggedIn && accountRole === "student" && (
               <div className="hidden items-center gap-1.5 sm:flex" aria-label="Your stats">
                 <span className="flex items-center gap-1 rounded-xl px-2 py-1 text-sm font-black text-tang-500" title="Day streak">
                   <FlameArt size={18} /> {progress.streakDays}
@@ -78,14 +104,14 @@ const tabs = [
               {isLoggedIn && (
                 <button
                   onClick={() => {
-                    logout();
+                    void signOut();
                     nav("/");
                   }}
                   className="ml-1 flex cursor-pointer items-center gap-1.5 rounded-2xl px-2.5 py-1.5 text-sm font-black text-faint hover:bg-coral-100 hover:text-coral-700"
-                  title={`Sign out ${progress.userName}`}
+                  title={`Sign out ${accountName}`}
                 >
                   <LogOut size={15} strokeWidth={2.75} />
-                  <span className="hidden max-w-20 truncate lg:inline">{progress.userName}</span>
+                  <span className="hidden max-w-20 truncate lg:inline">{accountName}</span>
                 </button>
               )}
             </nav>
@@ -93,21 +119,26 @@ const tabs = [
             {isLoggedIn && (
               <button
                 onClick={() => {
-                  logout();
+                  void signOut();
                   nav("/");
                 }}
                 className="flex cursor-pointer items-center gap-1.5 rounded-2xl px-2.5 py-2 text-sm font-black text-faint hover:bg-coral-100 hover:text-coral-700 sm:hidden"
-                title={`Sign out ${progress.userName}`}
-                aria-label={`Sign out ${progress.userName}`}
+                title={`Sign out ${accountName}`}
+                aria-label={`Sign out ${accountName}`}
               >
                 <LogOut size={17} strokeWidth={2.75} />
               </button>
             )}
+            {isLoggedIn && (
+              <div className="hidden sm:block">
+                <SyncDot />
+              </div>
+            )}
           </div>
         </div>
-        {!isSupabaseConfigured && (
-          <div className="border-t-2 border-sky-200 bg-sky-100 px-4 py-1.5 text-center text-xs font-extrabold text-sky-700">
-            Demo mode — progress is saved on this device only. Add Supabase keys to sync remotely.
+        {authStatus === "unconfigured" && (
+          <div className="border-t-2 border-tang-400/50 bg-tang-100 px-4 py-1.5 text-center text-xs font-extrabold text-tang-700">
+            Backend not connected — the family that hosts Pebble needs to add the Supabase keys (see README).
           </div>
         )}
       </header>

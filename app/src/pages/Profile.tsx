@@ -25,7 +25,7 @@ function startOfWeekMonday(d: Date): Date {
 }
 
 export default function Profile() {
-  const { progress, isLoggedIn } = useProgress();
+  const { progress, isLoggedIn, accountRole } = useProgress();
   const { level, intoLevel, levelSize } = levelForXp(progress.xp);
   const [spotId, setSpotId] = useState<string | null>(null);
 
@@ -82,7 +82,7 @@ export default function Profile() {
               {progress.userName}
             </h1>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
-              <Badge tone="sun" className="border-white/60 bg-white">{progress.role === "student" ? "Student" : "Parent"}</Badge>
+              <Badge tone="sun" className="border-white/60 bg-white">{accountRole === "parent" ? "Parent" : "Student"}</Badge>
               <Badge tone="sun" className="border-white/60 bg-white/90 text-ink">Level {level}</Badge>
               <Badge tone="sun" className="border-white/60 bg-white/90 text-ink">
                 Rolling since {since ?? "today"}
@@ -160,7 +160,7 @@ export default function Profile() {
         </div>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <Link to="/achievements"><Button variant="blue" className="w-full">Achievements</Button></Link>
-          {progress.role === "parent" ? (
+          {accountRole === "parent" ? (
             <Link to="/parent"><Button variant="white" className="w-full"><Users size={16} strokeWidth={2.75} /> Parent reports</Button></Link>
           ) : (
             <Link to="/challenge"><Button variant="white" className="w-full"><Swords size={16} strokeWidth={2.75} /> Weekly showdown</Button></Link>

@@ -20,10 +20,20 @@ import {
   specialBadges,
   type Lesson,
 } from "../data/curriculum";
+import { supabase, isSupabaseConfigured } from "./supabase";
+import {
+  fetchLearnerState,
+  fetchProfile,
+  fetchChildren,
+  createChildAccount,
+  pushLearnerSnapshot,
+} from "./backend";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type Role = "student" | "parent";
+export type AuthStatus = "unconfigured" | "loading" | "signed-out" | "ready";
+export type SyncMode = "saved" | "saving" | "offline";
 
 export interface Attempt {
   id: string;
@@ -63,12 +73,31 @@ export interface ProgressState {
   challengeDays: string[]; // yyyy-mm-dd weekly-showdown completions
 }
 
+export interface LinkedStudent {
+  id: string;
+  displayName: string;
+}
+
 interface StoreCtx {
-  progress: ProgressState;
-  demoMode: boolean;
-  login: (name: string, role: Role) => void;
-  logout: () => void;
+  // auth — one account per family member; RLS keeps families apart
+  authStatus: AuthStatus;
+  authError: string | null;
+  userId: string | null;
+  accountRole: Role | null;
+  accountName: string;
+  students: LinkedStudent[];
+  activeStudentId: string | null;
   isLoggedIn: boolean;
+  canLearn: boolean;
+  signUp: (input: { displayName: string; email: string; password: string; role: Role }) => Promise<boolean>;
+  signIn: (input: { email: string; password: string }) => Promise<boolean>;
+  signOut: () => Promise<void>;
+  addChild: (input: { displayName: string; email: string; password: string }) => Promise<string | null>;
+  switchStudent: (id: string) => void;
+  retrySync: () => void;
+  sync: { mode: SyncMode };
+  // active learner snapshot (self for students, selected child for parents)
+  progress: ProgressState;
   recordAttempt: (a: Omit<Attempt, "id" | "dateISO" | "scorePercent" | "autoCorrect" | "autoTotal" | "xpEarned" | "band"> & { dateISO?: string }) => Attempt;
   markFlashcardsSeen: (lesson: Lesson) => void;
   completeChallenge: () => void;
@@ -77,7 +106,6 @@ interface StoreCtx {
   advanceCelebration: () => void;
   dismissCelebration: () => void;
   setGoal: (lessonsPerWeek: number) => void;
-  resetDemo: () => void;
   todayLesson: Lesson;
   recommendedRevision: { lessonId: string; reason: string }[];
   weeklyRevisionSet: { lessonId: string; mcqId: string }[];
@@ -119,7 +147,7 @@ function xpFor(percent: number, band: Attempt["band"], isFirstCompletion: boolea
   return base + perf + firstBonus + bandBonus;
 }
 
-const STORAGE_KEY = "pebble-progress-v1";
+const cacheKey = (studentId: string) => `pebble-cache-${studentId}`;
 
 function emptyProgress(): ProgressState {
   return {
@@ -139,13 +167,21 @@ function emptyProgress(): ProgressState {
   };
 }
 
-function load(): ProgressState {
+function readCache(studentId: string): ProgressState | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return emptyProgress();
+    const raw = localStorage.getItem(cacheKey(studentId));
+    if (!raw) return null;
     return { ...emptyProgress(), ...JSON.parse(raw) };
   } catch {
-    return emptyProgress();
+    return null;
+  }
+}
+
+function writeCache(studentId: string, p: ProgressState) {
+  try {
+    localStorage.setItem(cacheKey(studentId), JSON.stringify(p));
+  } catch {
+    /* storage unavailable */
   }
 }
 
@@ -184,17 +220,32 @@ function perObjectiveScore(
 const Ctx = createContext<StoreCtx | null>(null);
 
 export function ProgressProvider({ children }: { children: ReactNode }) {
-  const [progress, setProgress] = useState<ProgressState>(load);
+  const [authStatus, setAuthStatus] = useState<AuthStatus>(isSupabaseConfigured ? "loading" : "unconfigured");
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [accountRole, setAccountRole] = useState<Role | null>(null);
+  const [accountName, setAccountName] = useState("");
+  const [students, setStudents] = useState<LinkedStudent[]>([]);
+  const [activeStudentId, setActiveStudentId] = useState<string | null>(null);
+  const [progress, setProgress] = useState<ProgressState>(emptyProgress);
+  const [syncMode, setSyncMode] = useState<SyncMode>("saved");
+  const [dirty, setDirty] = useState(0);
   const [celebration, setCelebration] = useState<string[]>([]);
-  const prevBadges = useRef<string[]>(progress.earnedBadges);
+  const prevBadges = useRef<string[]>([]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
-    } catch {
-      /* storage unavailable */
-    }
-  }, [progress]);
+  const progressRef = useRef(progress);
+  progressRef.current = progress;
+  const activeRef = useRef<string | null>(null);
+  activeRef.current = activeStudentId;
+  const userRef = useRef<string | null>(null);
+  userRef.current = userId;
+  const roleRef = useRef<Role | null>(null);
+  roleRef.current = accountRole;
+
+  const canWriteAsLearner = useCallback(
+    () => roleRef.current === "student" && !!userRef.current && activeRef.current === userRef.current,
+    [],
+  );
 
   // Queue freshly earned badges for the celebration popup (once each).
   useEffect(() => {
@@ -213,21 +264,267 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     setCelebration([]);
   }, []);
 
-  const login = useCallback((name: string, role: Role) => {
-    setProgress((p) => ({ ...p, userName: name.trim() || (role === "parent" ? "Parent" : "Learner"), role }));
+  // ── load a learner snapshot: server first, offline cache as fallback ──
+  const loadSnapshot = useCallback(async (studentId: string) => {
+    setSyncMode("saving");
+    try {
+      const remote = await fetchLearnerState(studentId);
+      const rebuilt: ProgressState = {
+        ...emptyProgress(),
+        userName: remote.displayName,
+        xp: remote.xp,
+        studyDates: remote.days,
+        completedLessons: [
+          ...new Set(
+            remote.attempts.filter((a) => a.band !== "revision").map((a) => a.lessonId),
+          ).values(),
+        ].filter((id) => id !== masterLesson.lessonId),
+        attempts: remote.attempts,
+        objectiveMastery: remote.mastery,
+        earnedBadges: remote.badges,
+        goals: { lessonsPerWeek: remote.goal },
+        challengeDays: remote.challengeDays,
+      };
+      // recompute streak from study days (robust to clock skew)
+      let run = 0;
+      let cursor = new Date().toISOString().slice(0, 10);
+      const set = new Set(rebuilt.studyDates);
+      if (!set.has(cursor)) {
+        cursor = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      }
+      while (set.has(cursor)) {
+        run += 1;
+        cursor = new Date(new Date(cursor + "T12:00:00").getTime() - 86400000).toISOString().slice(0, 10);
+      }
+      rebuilt.streakDays = run;
+      rebuilt.lastStudyDate = [...rebuilt.studyDates].sort().pop() ?? null;
+      setProgress(rebuilt);
+      writeCache(studentId, rebuilt);
+      setSyncMode("saved");
+    } catch {
+      const cached = readCache(studentId);
+      if (cached) {
+        setProgress(cached);
+        setSyncMode("offline");
+      } else {
+        setProgress(emptyProgress());
+        setSyncMode("offline");
+      }
+    }
   }, []);
 
-  const logout = useCallback(() => {
-    setProgress((p) => ({ ...p, userName: "" }));
+  const loadUser = useCallback(
+    async (uid: string) => {
+      // profile may lag the trigger by a beat — retry briefly
+      let profile: { role: Role; displayName: string } | null = null;
+      for (let i = 0; i < 4 && !profile; i++) {
+        try {
+          profile = await fetchProfile(uid);
+        } catch {
+          profile = null;
+        }
+        if (!profile && i < 3) await new Promise((r) => setTimeout(r, 800));
+      }
+      if (!profile) {
+        setAuthError("Signed in, but the profile isn't ready yet — please retry in a moment.");
+        setAuthStatus("signed-out");
+        return;
+      }
+      setUserId(uid);
+      setAccountRole(profile.role);
+      setAccountName(profile.displayName);
+      setAuthError(null);
+      if (profile.role === "student") {
+        setStudents([]);
+        setActiveStudentId(uid);
+        await loadSnapshot(uid);
+      } else {
+        try {
+          const kids = await fetchChildren(uid);
+          setStudents(kids);
+          if (kids.length > 0) {
+            setActiveStudentId(kids[0].id);
+            await loadSnapshot(kids[0].id);
+          } else {
+            setActiveStudentId(null);
+            setProgress(emptyProgress());
+          }
+        } catch {
+          setAuthError("Could not load your linked children — check your connection and retry.");
+        }
+      }
+      setAuthStatus("ready");
+    },
+    [loadSnapshot],
+  );
+
+  // ── session bootstrap ──
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) {
+      setAuthStatus("unconfigured");
+      return;
+    }
+    let alive = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!alive) return;
+      if (data.session?.user) void loadUser(data.session.user.id);
+      else setAuthStatus("signed-out");
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!alive) return;
+      if (event === "SIGNED_IN" && session?.user) void loadUser(session.user.id);
+      else if (event === "SIGNED_OUT") {
+        setUserId(null);
+        setAccountRole(null);
+        setAccountName("");
+        setStudents([]);
+        setActiveStudentId(null);
+        setProgress(emptyProgress());
+        setAuthStatus("signed-out");
+      }
+    });
+    const onOnline = () => setDirty((d) => d + 1);
+    window.addEventListener("online", onOnline);
+    return () => {
+      alive = false;
+      sub.subscription.unsubscribe();
+      window.removeEventListener("online", onOnline);
+    };
+  }, [loadUser]);
+
+  // ── persist active snapshot (idempotent full-state sync, retry-safe) ──
+  useEffect(() => {
+    if (dirty === 0) return;
+    const sid = activeRef.current;
+    const uid = userRef.current;
+    if (!sid || !uid || !isSupabaseConfigured) return;
+    let cancelled = false;
+    setSyncMode("saving");
+    const p = progressRef.current;
+    void pushLearnerSnapshot(sid, {
+      attempts: p.attempts,
+      mastery: p.objectiveMastery,
+      badges: p.earnedBadges,
+      days: p.studyDates,
+      challengeDays: p.challengeDays,
+      xp: p.xp,
+      goal: p.goals.lessonsPerWeek,
+    }).then((ok) => {
+      if (cancelled) return;
+      if (ok) {
+        writeCache(sid, progressRef.current);
+        setSyncMode("saved");
+      } else {
+        setSyncMode("offline");
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [dirty]);
+
+  const signUp = useCallback(
+    async (input: { displayName: string; email: string; password: string; role: Role }) => {
+      setAuthError(null);
+      if (!isSupabaseConfigured || !supabase) {
+        setAuthError("Backend is not connected yet — ask whoever set up Pebble to add the Supabase keys.");
+        return false;
+      }
+      const { data, error } = await supabase.auth.signUp({
+        email: input.email.trim(),
+        password: input.password,
+        options: { data: { display_name: input.displayName.trim(), role: input.role } },
+      });
+      if (error) {
+        setAuthError(error.message);
+        return false;
+      }
+      if (data.session?.user) {
+        await loadUser(data.session.user.id);
+        return true;
+      }
+      setAuthError("Account created — check your email to confirm it, then sign in.");
+      return false;
+    },
+    [loadUser],
+  );
+
+  const signIn = useCallback(
+    async (input: { email: string; password: string }) => {
+      setAuthError(null);
+      if (!isSupabaseConfigured || !supabase) {
+        setAuthError("Backend is not connected yet — ask whoever set up Pebble to add the Supabase keys.");
+        return false;
+      }
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: input.email.trim(),
+        password: input.password,
+      });
+      if (error) {
+        setAuthError(error.message);
+        return false;
+      }
+      if (data.user) {
+        setAuthStatus("loading");
+        await loadUser(data.user.id);
+        return true;
+      }
+      return false;
+    },
+    [loadUser],
+  );
+
+  const signOut = useCallback(async () => {
+    try {
+      await supabase?.auth.signOut();
+    } finally {
+      setUserId(null);
+      setAccountRole(null);
+      setAccountName("");
+      setStudents([]);
+      setActiveStudentId(null);
+      setProgress(emptyProgress());
+      setAuthStatus(isSupabaseConfigured ? "signed-out" : "unconfigured");
+    }
   }, []);
 
-  const resetDemo = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
-    setProgress(emptyProgress());
-  }, []);
+  const addChild = useCallback(
+    async (input: { displayName: string; email: string; password: string }): Promise<string | null> => {
+      try {
+        await createChildAccount(input);
+      } catch (e) {
+        return e instanceof Error ? e.message : "Could not create the student login";
+      }
+      try {
+        if (userRef.current) {
+          const kids = await fetchChildren(userRef.current);
+          setStudents(kids);
+          if (!activeRef.current && kids.length > 0) {
+            setActiveStudentId(kids[0].id);
+            await loadSnapshot(kids[0].id);
+          }
+        }
+      } catch {
+        /* list refreshes on next load */
+      }
+      return null;
+    },
+    [loadSnapshot],
+  );
+
+  const switchStudent = useCallback(
+    (id: string) => {
+      setActiveStudentId(id);
+      void loadSnapshot(id);
+    },
+    [loadSnapshot],
+  );
+
+  const retrySync = useCallback(() => setDirty((d) => d + 1), []);
 
   const setGoal = useCallback((lessonsPerWeek: number) => {
     setProgress((p) => ({ ...p, goals: { lessonsPerWeek: Math.max(1, Math.min(12, lessonsPerWeek)) } }));
+    setDirty((d) => d + 1);
   }, []);
 
   const markFlashcardsSeen = useCallback((lesson: Lesson) => {
@@ -239,6 +536,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const completeChallenge = useCallback(() => {
+    if (!canWriteAsLearner()) throw new Error("Only the student's own account records challenge completions.");
     const day = new Date().toISOString().slice(0, 10);
     setProgress((p) => {
       if (p.challengeDays.includes(day)) return p;
@@ -250,10 +548,12 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         xp: already ? p.xp : p.xp + consistencyBadges[3].xpReward,
       };
     });
+    setDirty((d) => d + 1);
   }, []);
 
   const recordAttempt = useCallback(
     (input: Omit<Attempt, "id" | "dateISO" | "scorePercent" | "autoCorrect" | "autoTotal" | "xpEarned" | "band"> & { dateISO?: string }) => {
+      if (!canWriteAsLearner()) throw new Error("Only the student's own account records lessons.");
       const lesson = lessons.find((l) => l.lessonId === input.lessonId) ?? (input.lessonId === masterLesson.lessonId ? masterLesson : undefined);
       if (!lesson) throw new Error(`Unknown lesson: ${input.lessonId}`);
       const { correct, total, percent } = scoreLesson(lesson, input.mcqAnswers, input.tfAnswers);
@@ -313,7 +613,6 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
           const prev = objectiveMastery[oid] ?? { attempts: 0, bestScore: 0, mastered: false };
           const attempts = prev.attempts + 1;
           const bestScore = Math.max(prev.bestScore, pct);
-          // count tagged questions across the whole curriculum attempt history roughly:
           // mastered if (attempts>=2 && best>=80) or (single attempt with >=3 tagged Qs at 100%)
           const taggedTotal = s.total;
           const mastered = prev.mastered || (attempts >= 2 && bestScore >= 80) || (taggedTotal >= 3 && pct === 100);
@@ -353,6 +652,11 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
             const rel = attempts.filter((a) => a.lessonId === "lesson-4.1" && a.challengeDone && a.scorePercent >= 80);
             if (rel.length > 0) award(b.badgeId, b.xpReward);
           }
+          if (b.badgeId === "bdg-capstone") {
+            if (attempts.some((a) => a.lessonId === masterLesson.lessonId && a.scorePercent >= 80)) {
+              award(b.badgeId, b.xpReward);
+            }
+          }
         }
         // consistency badges
         if (streakDays >= 3) award("bdg-streak-3", consistencyBadges[0].xpReward);
@@ -365,14 +669,10 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
             break;
           }
         }
-        // capstone: clearing the Final Showdown at 80%+ earns the top badge
-        if (attempts.some((a) => a.lessonId === masterLesson.lessonId && a.scorePercent >= 80)) {
-          const cap = specialBadges.find((b) => b.badgeId === "bdg-capstone");
-          if (cap) award(cap.badgeId, cap.xpReward);
-        }
 
         return { ...p, xp, streakDays, lastStudyDate, studyDates, completedLessons, attempts, objectiveMastery, earnedBadges };
       });
+      setDirty((d) => d + 1);
 
       return created;
     },
@@ -382,10 +682,11 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   const value = useMemo<StoreCtx>(() => {
     // today's lesson = first incomplete in curriculum order; the capstone
     // becomes today's mission once all 12 topic lessons are complete.
+    const done = progress.completedLessons;
     const masterDone = isMasterComplete(progress.attempts);
     const todayLesson =
-      lessons.find((l) => !progress.completedLessons.includes(l.lessonId)) ??
-      (!masterDone && isMasterUnlocked(progress.completedLessons) ? masterLesson : lessons[lessons.length - 1]);
+      lessons.find((l) => !done.includes(l.lessonId)) ??
+      (!masterDone && isMasterUnlocked(done) ? masterLesson : lessons[lessons.length - 1]);
 
     // adaptive revision: weakest objectives → their lessons
     const weak = Object.entries(progress.objectiveMastery)
@@ -397,16 +698,28 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       return lesson ? [{ lessonId: lesson.lessonId, reason: `Needs work (${e.bestScore}% best so far)` }] : [];
     });
 
-    // weekly revision challenge: sample 1 MCQ from up to 6 completed/weak lessons
+    // weekly revision challenge: sample 1 MCQ from up to 6 lessons with MCQs
     const pool = lessons.filter((l) => l.mcqs.length > 0);
     const weeklyRevisionSet = pool.slice(0, 6).map((l) => ({ lessonId: l.lessonId, mcqId: l.mcqs[0].id }));
 
     return {
+      authStatus,
+      authError,
+      userId,
+      accountRole,
+      accountName,
+      students,
+      activeStudentId,
+      isLoggedIn: authStatus === "ready" && !!userId,
+      canLearn: accountRole === "student" && !!userId && activeStudentId === userId,
+      signUp,
+      signIn,
+      signOut,
+      addChild,
+      switchStudent,
+      retrySync,
+      sync: { mode: syncMode },
       progress,
-      demoMode: true,
-      login,
-      logout,
-      isLoggedIn: progress.userName.length > 0,
       recordAttempt,
       markFlashcardsSeen,
       completeChallenge,
@@ -414,12 +727,11 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       advanceCelebration,
       dismissCelebration,
       setGoal,
-      resetDemo,
       todayLesson,
       recommendedRevision,
       weeklyRevisionSet,
     };
-  }, [progress, login, logout, recordAttempt, markFlashcardsSeen, completeChallenge, celebration, advanceCelebration, dismissCelebration, setGoal, resetDemo]);
+  }, [authStatus, authError, userId, accountRole, accountName, students, activeStudentId, syncMode, progress, signUp, signIn, signOut, addChild, switchStudent, retrySync, recordAttempt, markFlashcardsSeen, completeChallenge, celebration, advanceCelebration, dismissCelebration, setGoal]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

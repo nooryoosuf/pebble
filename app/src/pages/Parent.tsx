@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   TrendingUp,
   Target,
   TriangleAlert,
   CircleCheck,
+  UserPlus,
+  Loader2,
   Flame,
   Zap,
   Map as MapIcon,
@@ -16,11 +18,102 @@ import { EmptyArt } from "../components/art";
 import { AppIcon } from "../components/PebbleMascot";
 import { lessons, chapters, chapterById, masterLesson } from "../data/curriculum";
 import { useProgress } from "../lib/store";
-import { isSupabaseConfigured } from "../lib/supabase";
+import { cn } from "../components/ui";
+
+/** Parent-only: switch between linked children + create a child's login. */
+function ChildManager() {
+  const { students, activeStudentId, switchStudent, addChild } = useProgress();
+  const [showForm, setShowForm] = useState(students.length === 0);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const valid = name.trim().length >= 2 && email.includes("@") && password.length >= 8;
+
+  const submit = async () => {
+    setBusy(true);
+    setMsg(null);
+    const err = await addChild({ displayName: name.trim(), email: email.trim(), password });
+    setBusy(false);
+    if (err) {
+      setMsg({ ok: false, text: err });
+    } else {
+      setMsg({ ok: true, text: `Login created for ${name.trim()} (${email.trim()}). Sign them in on their device — progress will appear here.` });
+      setName("");
+      setEmail("");
+      setPassword("");
+    }
+  };
+
+  return (
+    <Card>
+      <p className="text-[11px] font-extrabold tracking-[0.14em] text-slate-muted uppercase">Your children</p>
+      {students.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5" role="tablist" aria-label="Choose child">
+          {students.map((s) => (
+            <button
+              key={s.id}
+              role="tab"
+              aria-selected={activeStudentId === s.id}
+              onClick={() => switchStudent(s.id)}
+              className={cn(
+                "cursor-pointer rounded-2xl border-2 px-3.5 py-2 text-sm font-black transition",
+                activeStudentId === s.id
+                  ? "border-sky-500 bg-sky-100 text-sky-700"
+                  : "border-line bg-white text-slate-muted hover:text-slate-ink",
+              )}
+            >
+              {s.displayName}
+            </button>
+          ))}
+          <button
+            onClick={() => setShowForm((v) => !v)}
+            className="flex cursor-pointer items-center gap-1 rounded-2xl border-2 border-dashed border-line px-3.5 py-2 text-sm font-black text-slate-muted hover:text-slate-ink"
+          >
+            <UserPlus size={15} strokeWidth={2.75} /> Add child
+          </button>
+        </div>
+      )}
+      {(showForm || students.length === 0) && (
+        <div className="mt-3 rounded-2xl border border-line bg-stage/60 p-3.5">
+          <p className="text-sm font-black">Create your child's login</p>
+          <p className="text-xs font-semibold text-slate-muted">
+            Their account links to you automatically. Tip: use your email with a plus, like you+child@gmail.com.
+          </p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Child's name" autoComplete="off"
+              className="rounded-xl border-2 border-line bg-white px-3 py-2 text-sm font-bold outline-none placeholder:text-faint focus:border-sky-400" />
+            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Child's email" type="email" autoComplete="off"
+              className="rounded-xl border-2 border-line bg-white px-3 py-2 text-sm font-bold outline-none placeholder:text-faint focus:border-sky-400" />
+            <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password (8+ chars)" type="password" autoComplete="new-password"
+              className="rounded-xl border-2 border-line bg-white px-3 py-2 text-sm font-bold outline-none placeholder:text-faint focus:border-sky-400" />
+          </div>
+          {msg && (
+            <p className={cn("mt-2 rounded-xl border-2 px-3 py-2 text-xs font-bold", msg.ok ? "border-mint-400/50 bg-mint-50 text-mint-800" : "border-coral-400/50 bg-coral-100/50 text-coral-700")} role="alert">
+              {msg.text}
+            </p>
+          )}
+          <Button variant="blue" className="mt-2 px-4 py-2 text-sm" disabled={!valid || busy} onClick={submit}>
+            {busy ? <Loader2 size={15} strokeWidth={3} className="animate-spin" /> : <UserPlus size={15} strokeWidth={2.75} />}
+            Create login
+          </Button>
+        </div>
+      )}
+    </Card>
+  );
+}
 
 export default function Parent() {
-  const { progress, isLoggedIn, setGoal, resetDemo } = useProgress();
+  const { progress, isLoggedIn, setGoal, accountRole, accountName, students, activeStudentId, sync } = useProgress();
   const [goalDraft, setGoalDraft] = useState(progress.goals.lessonsPerWeek);
+
+  // keep the goal editor in sync when switching children
+  useEffect(() => {
+    setGoalDraft(progress.goals.lessonsPerWeek);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeStudentId]);
 
   const attempts = progress.attempts;
   const avg = attempts.length ? Math.round(attempts.reduce((s, a) => s + a.scorePercent, 0) / attempts.length) : null;
@@ -62,11 +155,11 @@ export default function Parent() {
           <AppIcon size={44} />
           <div>
             <p className="text-[11px] font-extrabold tracking-[0.14em] text-slate-muted uppercase">
-              Parent dashboard · {progress.userName}
+              Parent dashboard · {accountName || "Family"}
             </p>
             <h1 className="text-2xl font-black">Learning report</h1>
             <p className="text-xs font-semibold text-slate-muted">
-              {isSupabaseConfigured ? "Live data via Supabase." : "Demo mode: figures come only from activity recorded on this device."}
+              {sync.mode === "offline" ? "You're offline — showing the last synced snapshot." : "Synced from your child's saved account activity."}
             </p>
           </div>
         </div>
@@ -75,7 +168,33 @@ export default function Parent() {
         </Badge>
       </div>
 
-      {attempts.length === 0 ? (
+      {accountRole === "parent" && (
+        <div className="mt-3">
+          <ChildManager />
+        </div>
+      )}
+
+      {accountRole === "student" && (
+        <Card className="mt-3 text-center">
+          <p className="text-lg font-black">This corner is for parents</p>
+          <p className="mx-auto max-w-md text-sm font-semibold text-slate-muted">
+            Missions, streaks and medals live in your world. Ask a parent to create their own login to follow your progress here.
+          </p>
+          <Link to="/dashboard"><Button className="mt-3">Back to learning</Button></Link>
+        </Card>
+      )}
+
+      {accountRole === "parent" && students.length === 0 && (
+        <Card className="mt-3 text-center">
+          <EmptyArt className="mx-auto h-28 w-auto" />
+          <p className="mt-2 text-lg font-black">Add your child to begin</p>
+          <p className="mx-auto max-w-md text-sm font-semibold text-slate-muted">
+            Create their login above — their lessons, scores and reports will land here, separate from every other family.
+          </p>
+        </Card>
+      )}
+
+      {accountRole === "parent" && students.length > 0 && attempts.length === 0 ? (
         <Card className="mt-4 text-center">
           <EmptyArt className="mx-auto h-28 w-auto" />
           <p className="mt-2 text-lg font-black">No activity yet</p>
@@ -83,7 +202,8 @@ export default function Parent() {
             Once your child completes a lesson, scores, trends and strengths will appear here — based on real attempts only.
           </p>
         </Card>
-      ) : (
+      ) : null}
+      {accountRole === "parent" && students.length > 0 && attempts.length > 0 ? (
         <div className="mt-4 space-y-3">
           {/* KPI row */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -237,12 +357,9 @@ export default function Parent() {
                 </tbody>
               </table>
             </div>
-            <button onClick={resetDemo} className="mt-3 cursor-pointer text-xs font-bold text-slate-muted underline hover:text-coral-700">
-              Reset demo data on this device
-            </button>
           </Card>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -37,7 +37,7 @@ const mascotLine = (pct: number | null) => {
 };
 
 export default function Dashboard() {
-  const { progress, todayLesson, recommendedRevision, isLoggedIn } = useProgress();
+  const { progress, todayLesson, recommendedRevision, isLoggedIn, accountRole } = useProgress();
   const { level, intoLevel, levelSize } = levelForXp(progress.xp);
   const lastAttempt = progress.attempts[progress.attempts.length - 1];
   const doneCount = progress.completedLessons.length;
@@ -53,8 +53,21 @@ export default function Dashboard() {
         <Card className="text-center">
           <div className="flex justify-center"><PebbleMascot mood="think" size={110} /></div>
           <p className="mt-2 text-lg font-black">Hop in, future founder!</p>
-          <p className="text-sm font-bold text-muted">Tell Pebble your name so your medals and streaks have a home.</p>
+          <p className="text-sm font-bold text-muted">Sign in so your medals and streaks have a home.</p>
           <Link to="/start"><Button className="mt-4 w-full">Get started <ArrowRight size={16} strokeWidth={3} /></Button></Link>
+        </Card>
+      </div>
+    );
+  }
+
+  if (accountRole === "parent") {
+    return (
+      <div className="mx-auto max-w-md">
+        <Card className="text-center">
+          <div className="flex justify-center"><PebbleMascot mood="happy" size={110} /></div>
+          <p className="mt-2 text-lg font-black">You're signed in as a parent</p>
+          <p className="text-sm font-bold text-muted">Missions belong to student accounts. Follow your child's progress in reports.</p>
+          <Link to="/parent"><Button className="mt-4 w-full">Open parent reports <ArrowRight size={16} strokeWidth={3} /></Button></Link>
         </Card>
       </div>
     );
