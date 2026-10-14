@@ -146,6 +146,7 @@ const badgeThemes: Record<string, BadgeTheme> = {
   "bdg-streak-7": { face: "#ff9600", ring: "#b25f00", ribbon: "#ff6b6b", glyphColor: "#ffffff", Glyph: (p) => <FlameArt size={p.size} /> },
   "bdg-comeback": { face: "#58cc02", ring: "#377e00", ribbon: "#1cb0f6", glyphColor: "#ffffff", Glyph: (p) => <RotateCcw size={p.size} strokeWidth={2.6} /> },
   "bdg-reviser": { face: "#a560ff", ring: "#6b32c4", ribbon: "#ff9600", glyphColor: "#ffffff", Glyph: (p) => <Swords size={p.size} strokeWidth={2.6} /> },
+  "bdg-capstone": { face: "#ffc800", ring: "#c98f00", ribbon: "#ff6b6b", glyphColor: "#7a4a00", Glyph: (p) => <Trophy size={p.size} strokeWidth={2.6} /> },
 };
 
 const fallbackTheme: BadgeTheme = {

@@ -928,6 +928,7 @@ export const specialBadges: SpecialBadge[] = [
   { badgeId: "bdg-flawless-balance", title: "Flawless Balance", criteria: "Balance an end-of-year trial balance and prepare a balance sheet without calculation errors.", linkedObjectiveIds: ["lo-2.1.3", "lo-2.3.2"], xpReward: 200 },
   { badgeId: "bdg-productivity-pro", title: "Productivity Pro", criteria: "Accurately compute total, average, and marginal product and correctly identify diminishing returns.", linkedObjectiveIds: ["lo-3.4.1", "lo-3.4.2"], xpReward: 150 },
   { badgeId: "bdg-corporate-architect", title: "Corporate Architect", criteria: "Recommend and justify the optimal ownership structure in the business scenario challenge.", linkedObjectiveIds: ["lo-4.1.1", "lo-4.1.2"], xpReward: 200 },
+  { badgeId: "bdg-capstone", title: "Capstone Conqueror", criteria: "Clear the Final Showdown capstone with 80% or higher.", linkedObjectiveIds: [], xpReward: 300 },
 ];
 
 export const consistencyBadges = [

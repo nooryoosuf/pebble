@@ -341,6 +341,11 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
             break;
           }
         }
+        // capstone: clearing the Final Showdown at 80%+ earns the top badge
+        if (attempts.some((a) => a.lessonId === masterLesson.lessonId && a.scorePercent >= 80)) {
+          const cap = specialBadges.find((b) => b.badgeId === "bdg-capstone");
+          if (cap) award(cap.badgeId, cap.xpReward);
+        }
 
         return { ...p, xp, streakDays, lastStudyDate, studyDates, completedLessons, attempts, objectiveMastery, earnedBadges };
       });

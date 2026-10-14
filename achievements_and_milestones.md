@@ -89,6 +89,13 @@
       "criteria": "Recommend and justify the optimal ownership structure in the business scenario challenge.",
       "linkedObjectiveIds": ["lo-4.1.1", "lo-4.1.2"],
       "xpReward": 200
+    },
+    {
+      "badgeId": "bdg-capstone",
+      "title": "Capstone Conqueror",
+      "criteria": "Clear the Final Showdown capstone (fresh mixed questions from all four chapters) with 80% or higher.",
+      "linkedObjectiveIds": [],
+      "xpReward": 300
     }
   ]
 }
