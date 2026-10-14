@@ -4,6 +4,7 @@ import { Swords, CircleCheck, CircleX, Lightbulb, ArrowRight } from "lucide-reac
 import PebbleMascot from "../components/PebbleMascot";
 import { Button, Card, Badge, ScoreRing } from "../components/ui";
 import { TrophyArt, ConfettiBurst, EmptyArt } from "../components/art";
+import { Gloss } from "../components/Gloss";
 import { lessons, lessonById } from "../data/curriculum";
 import { useProgress } from "../lib/store";
 import { cn } from "../components/ui";
@@ -113,7 +114,7 @@ export default function Challenge() {
                   {q.question}
                 </p>
                 <p className="mt-1 flex items-start gap-1 text-xs font-bold text-muted">
-                  <Lightbulb size={13} strokeWidth={2.75} className="mt-0.5 shrink-0 text-sun-500" />{q.explanation}
+                  <Lightbulb size={13} strokeWidth={2.75} className="mt-0.5 shrink-0 text-sun-500" /><Gloss text={q.explanation} />
                 </p>
                 {!ok && (
                   <Link to={`/lesson/${lesson.lessonId}`} className="mt-1.5 inline-block text-xs font-black text-sky-700 underline">

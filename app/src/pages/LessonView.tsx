@@ -21,6 +21,7 @@ import {
 import PebbleMascot from "../components/PebbleMascot";
 import { Button, Card, Badge, ProgressBar, ScoreRing } from "../components/ui";
 import { ConfettiBurst, EmptyArt } from "../components/art";
+import { Gloss } from "../components/Gloss";
 import { lessonById, chapterById, topicById, autoMarkableCount } from "../data/curriculum";
 import { useProgress, bandFor } from "../lib/store";
 import { cn } from "../components/ui";
@@ -166,7 +167,7 @@ export default function LessonView() {
                   </p>
                   <h3 className="mt-1 text-lg font-black text-ink">{s.heading}</h3>
                   <div className="reading mt-1.5 space-y-2.5">
-                    {s.body.map((p, j) => <p key={j}>{p}</p>)}
+                    {s.body.map((p, j) => <p key={j}><Gloss text={p} /></p>)}
                   </div>
                   {s.notebookPrompt && (
                     <div className="mt-3 flex gap-2.5 rounded-2xl border-2 border-sun-400/50 bg-sun-100/60 p-3">
@@ -174,7 +175,7 @@ export default function LessonView() {
                         <NotebookPen size={18} strokeWidth={2.5} />
                       </span>
                       <p className="text-sm font-bold text-ink">
-                        <span className="font-black text-sun-700">Notebook mission: </span>{s.notebookPrompt}
+                        <span className="font-black text-sun-700">Notebook mission: </span><Gloss text={s.notebookPrompt} />
                       </p>
                     </div>
                   )}
@@ -228,13 +229,13 @@ export default function LessonView() {
                               <p className="flex items-center gap-1 text-[11px] font-black tracking-[0.12em] text-sky-700 uppercase">
                                 <Layers size={12} strokeWidth={3} /> Quiz me — tap to flip
                               </p>
-                              <p className="mt-1.5 text-[15px] font-black text-ink">{f.front}</p>
+                              <p className="mt-1.5 text-[15px] font-black text-ink"><Gloss text={f.front} /></p>
                             </div>
                           </div>
                           <div className="flip-face flip-back grid place-items-center rounded-3xl border-b-8 border-mint-500 bg-mint-400 p-4">
                             <div>
                               <p className="text-[11px] font-black tracking-[0.12em] text-white/85 uppercase">Answer</p>
-                              <p className="reading mt-1 !text-white !text-sm font-semibold">{f.back}</p>
+                              <p className="reading mt-1 !text-white !text-sm font-semibold"><Gloss text={f.back} dark /></p>
                             </div>
                           </div>
                         </div>
@@ -250,8 +251,8 @@ export default function LessonView() {
                   </p>
                   {lesson.misconceptions.map((m) => (
                     <div key={m.id} className="mt-2 space-y-1 rounded-2xl border-2 border-line bg-white p-3 text-sm">
-                      <p className="flex items-start gap-1.5 font-bold text-coral-700"><CircleX size={15} strokeWidth={2.75} className="mt-0.5 shrink-0" />{m.misconception}</p>
-                      <p className="flex items-start gap-1.5 font-bold text-mint-800"><CircleCheck size={15} strokeWidth={2.75} className="mt-0.5 shrink-0" />{m.intervention}</p>
+                      <p className="flex items-start gap-1.5 font-bold text-coral-700"><CircleX size={15} strokeWidth={2.75} className="mt-0.5 shrink-0" /><Gloss text={m.misconception} /></p>
+                      <p className="flex items-start gap-1.5 font-bold text-mint-800"><CircleCheck size={15} strokeWidth={2.75} className="mt-0.5 shrink-0" /><Gloss text={m.intervention} /></p>
                     </div>
                   ))}
                 </Card>
@@ -389,8 +390,8 @@ export default function LessonView() {
                   </div>
                 </div>
                 <div className="space-y-1.5 p-5">
-                  <p className="reading !text-sm">{lesson.challenge.context}</p>
-                  <p className="text-sm font-black text-ink">Your task: {lesson.challenge.task}</p>
+                  <p className="reading !text-sm"><Gloss text={lesson.challenge.context} /></p>
+                  <p className="text-sm font-black text-ink">Your task: <Gloss text={lesson.challenge.task} /></p>
                   <textarea
                     rows={3}
                     value={challengeText}
@@ -488,7 +489,7 @@ function ResultsPanel({ lessonId, attemptId, onRetry, onNext }: { lessonId: stri
                 </p>
                 <p className="mt-1 text-xs font-black">You: {picked ? `${picked} — ${q.options[picked as "A" | "B" | "C" | "D"]}` : "no answer"} · Correct: {q.correctAnswer} — {q.options[q.correctAnswer]}</p>
                 <p className="mt-1 flex items-start gap-1 text-xs font-bold text-muted">
-                  <Lightbulb size={13} strokeWidth={2.75} className="mt-0.5 shrink-0 text-sun-500" />{q.explanation}
+                  <Lightbulb size={13} strokeWidth={2.75} className="mt-0.5 shrink-0 text-sun-500" /><Gloss text={q.explanation} />
                 </p>
               </div>
             );
@@ -504,7 +505,7 @@ function ResultsPanel({ lessonId, attemptId, onRetry, onNext }: { lessonId: stri
                 </p>
                 <p className="mt-1 text-xs font-black">You: {picked === undefined ? "no answer" : String(picked)} · Correct: {String(q.correctAnswer)}</p>
                 <p className="mt-1 flex items-start gap-1 text-xs font-bold text-muted">
-                  <Lightbulb size={13} strokeWidth={2.75} className="mt-0.5 shrink-0 text-sun-500" />{q.explanation}
+                  <Lightbulb size={13} strokeWidth={2.75} className="mt-0.5 shrink-0 text-sun-500" /><Gloss text={q.explanation} />
                 </p>
               </div>
             );
