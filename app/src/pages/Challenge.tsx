@@ -9,7 +9,7 @@ import { useProgress } from "../lib/store";
 import { cn } from "../components/ui";
 
 export default function Challenge() {
-  const { progress, weeklyRevisionSet } = useProgress();
+  const { progress, weeklyRevisionSet, completeChallenge } = useProgress();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [done, setDone] = useState(false);
 
@@ -89,7 +89,7 @@ export default function Challenge() {
               </div>
             </Card>
           ))}
-          <Button variant="tang" className="w-full text-base" disabled={Object.keys(answers).length < items.length} onClick={() => { setDone(true); window.scrollTo({ top: 0 }); }}>
+          <Button variant="tang" className="w-full text-base" disabled={Object.keys(answers).length < items.length} onClick={() => { completeChallenge(); setDone(true); window.scrollTo({ top: 0 }); }}>
             {Object.keys(answers).length < items.length ? `Answer all ${items.length} (${Object.keys(answers).length}/${items.length})` : "Finish showdown"}
           </Button>
         </div>

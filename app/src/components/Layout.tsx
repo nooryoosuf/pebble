@@ -1,5 +1,5 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { BookOpenText, LayoutDashboard, Users, Trophy, LogOut, Flame } from "lucide-react";
+import { BookOpenText, LayoutDashboard, Users, Trophy, CircleUserRound, LogOut, Flame } from "lucide-react";
 import { useProgress, levelForXp } from "../lib/store";
 import { isSupabaseConfigured } from "../lib/supabase";
 import { AppIcon } from "./PebbleMascot";
@@ -15,13 +15,14 @@ const tabs = [
   { to: "/dashboard", label: "Learn", icon: LayoutDashboard, active: "text-mint-700", pill: "bg-mint-100" },
   { to: "/journey", label: "Journey", icon: BookOpenText, active: "text-sky-700", pill: "bg-sky-100" },
   { to: "/challenge", label: "Challenge", icon: Trophy, active: "text-tang-500", pill: "bg-tang-100" },
+  { to: "/profile", label: "Profile", icon: CircleUserRound, active: "text-coral-700", pill: "bg-coral-100" },
   { to: "/parent", label: "Parents", icon: Users, active: "text-grape-700", pill: "bg-grape-100" },
 ] as const;
 
   const tabCls = (tone: { active: string; pill: string }) =>
     ({ isActive }: { isActive: boolean }) =>
       cn(
-        "flex min-h-[60px] min-w-[68px] flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-black transition",
+        "flex min-h-[60px] min-w-[62px] flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1.5 py-2 text-[11px] font-black transition",
         isActive ? cn(tone.pill, tone.active) : "text-faint hover:bg-parchment hover:text-muted",
       );
 

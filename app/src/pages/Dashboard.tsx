@@ -111,21 +111,21 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* stats trio */}
+        {/* stats trio — soft monotone translucent tiles */}
         <div className="grid grid-cols-3 gap-2.5">
-          <Card className="border-tang-400/30 p-4 text-center">
-            <span className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-tang-100"><FlameArt size={24} /></span>
-            <p className="mt-1.5 text-2xl leading-none font-black">{progress.streakDays}<span className="text-xs font-black text-muted"> days</span></p>
-            <p className="text-[11px] font-black tracking-wider text-tang-500 uppercase">Streak</p>
+          <Card className="border-line/70 bg-white/70 p-4 text-center backdrop-blur-[2px]">
+            <span className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-black/[0.05]"><FlameArt size={24} /></span>
+            <p className="mt-1.5 text-2xl leading-none font-black text-ink">{progress.streakDays}<span className="text-xs font-black text-muted"> days</span></p>
+            <p className="text-[11px] font-black tracking-wider text-muted uppercase">Streak</p>
           </Card>
-          <Card className="border-sun-400/40 p-4 text-center">
-            <span className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-sun-100"><BoltArt size={24} /></span>
-            <p className="mt-1.5 text-2xl leading-none font-black">{progress.xp}<span className="text-xs font-black text-muted"> · Lv{level}</span></p>
+          <Card className="border-line/70 bg-white/70 p-4 text-center backdrop-blur-[2px]">
+            <span className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-black/[0.05]"><BoltArt size={24} /></span>
+            <p className="mt-1.5 text-2xl leading-none font-black text-ink">{progress.xp}<span className="text-xs font-black text-muted"> · Lv{level}</span></p>
             <ProgressBar value={intoLevel} max={levelSize} bar="bg-sun-400" className="mt-2" />
           </Card>
-          <Card className="border-sky-400/30 p-4 text-center">
-            <span className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-sky-100 text-sky-700"><MapIcon size={22} strokeWidth={2.5} /></span>
-            <p className="mt-1.5 text-2xl leading-none font-black">{doneCount}<span className="text-xs font-black text-muted">/{lessons.length}</span></p>
+          <Card className="border-line/70 bg-white/70 p-4 text-center backdrop-blur-[2px]">
+            <span className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-black/[0.05] text-muted"><MapIcon size={22} strokeWidth={2.5} /></span>
+            <p className="mt-1.5 text-2xl leading-none font-black text-ink">{doneCount}<span className="text-xs font-black text-muted">/{lessons.length}</span></p>
             <ProgressBar value={doneCount} max={lessons.length} bar="bg-sky-400" className="mt-2" />
           </Card>
         </div>
@@ -167,15 +167,20 @@ export default function Dashboard() {
           <Link to="/challenge"><Button variant="grape" className="mt-3 w-full">Weekly showdown</Button></Link>
         </Card>
 
-        <Card>
-          <p className="text-[11px] font-black tracking-wider text-muted uppercase">
-            Medal cabinet · {progress.earnedBadges.length}/{allBadges.length}
-          </p>
+        <Card className="border-line/70 bg-white/70 backdrop-blur-[2px]">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-black tracking-wider text-muted uppercase">
+              Medal cabinet · {progress.earnedBadges.length}/{allBadges.length}
+            </p>
+            <Link to="/achievements" className="inline-flex items-center gap-0.5 text-[11px] font-black text-sky-700 hover:underline">
+              View all <ArrowRight size={12} strokeWidth={3} />
+            </Link>
+          </div>
           <div className="mt-1 grid grid-cols-4 gap-1.5">
             {allBadges.map((b) => {
               const earned = progress.earnedBadges.includes(b.id);
               return (
-                <div key={b.id} title={`${b.title} · +${b.xp} XP`} className="flex flex-col items-center gap-0.5 rounded-2xl bg-stage px-1 py-1.5 text-center">
+                <div key={b.id} title={`${b.title} · +${b.xp} XP`} className="flex flex-col items-center gap-0.5 rounded-2xl border border-line/60 bg-white/60 px-1 py-1.5 text-center">
                   <Medal
                     tone={badgeTone(b.id)}
                     size={40}

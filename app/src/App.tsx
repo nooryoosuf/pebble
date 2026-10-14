@@ -9,6 +9,8 @@ import Journey from "./pages/Journey";
 import LessonView from "./pages/LessonView";
 import Challenge from "./pages/Challenge";
 import Parent from "./pages/Parent";
+import Profile from "./pages/Profile";
+import Achievements from "./pages/Achievements";
 
 /** Every page/section navigation starts at the top of the page. */
 function ScrollToTop() {
@@ -33,6 +35,8 @@ export default function App() {
             <Route path="/lesson/:id" element={<LessonView />} />
             <Route path="/challenge" element={<Challenge />} />
             <Route path="/parent" element={<Parent />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/achievements" element={<Achievements />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Layout>

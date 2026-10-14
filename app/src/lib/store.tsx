@@ -56,6 +56,7 @@ export interface ProgressState {
   earnedBadges: string[]; // badge/milestone ids
   goals: { lessonsPerWeek: number };
   flashcardsSeen: Record<string, boolean>;
+  challengeDays: string[]; // yyyy-mm-dd weekly-showdown completions
 }
 
 interface StoreCtx {
@@ -66,6 +67,7 @@ interface StoreCtx {
   isLoggedIn: boolean;
   recordAttempt: (a: Omit<Attempt, "id" | "dateISO" | "scorePercent" | "autoCorrect" | "autoTotal" | "xpEarned" | "band"> & { dateISO?: string }) => Attempt;
   markFlashcardsSeen: (lesson: Lesson) => void;
+  completeChallenge: () => void;
   setGoal: (lessonsPerWeek: number) => void;
   resetDemo: () => void;
   todayLesson: Lesson;
@@ -125,6 +127,7 @@ function emptyProgress(): ProgressState {
     earnedBadges: [],
     goals: { lessonsPerWeek: 5 },
     flashcardsSeen: {},
+    challengeDays: [],
   };
 }
 
@@ -205,6 +208,20 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       const seen = { ...p.flashcardsSeen };
       for (const f of lesson.flashcards) seen[f.id] = true;
       return { ...p, flashcardsSeen: seen };
+    });
+  }, []);
+
+  const completeChallenge = useCallback(() => {
+    const day = new Date().toISOString().slice(0, 10);
+    setProgress((p) => {
+      if (p.challengeDays.includes(day)) return p;
+      const already = p.earnedBadges.includes("bdg-reviser");
+      return {
+        ...p,
+        challengeDays: [...p.challengeDays, day],
+        earnedBadges: already ? p.earnedBadges : [...p.earnedBadges, "bdg-reviser"],
+        xp: already ? p.xp : p.xp + consistencyBadges[3].xpReward,
+      };
     });
   }, []);
 
@@ -355,13 +372,14 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       isLoggedIn: progress.userName.length > 0,
       recordAttempt,
       markFlashcardsSeen,
+      completeChallenge,
       setGoal,
       resetDemo,
       todayLesson,
       recommendedRevision,
       weeklyRevisionSet,
     };
-  }, [progress, login, logout, recordAttempt, markFlashcardsSeen, setGoal, resetDemo]);
+  }, [progress, login, logout, recordAttempt, markFlashcardsSeen, completeChallenge, setGoal, resetDemo]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
