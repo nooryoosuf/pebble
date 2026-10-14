@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -71,6 +72,10 @@ interface StoreCtx {
   recordAttempt: (a: Omit<Attempt, "id" | "dateISO" | "scorePercent" | "autoCorrect" | "autoTotal" | "xpEarned" | "band"> & { dateISO?: string }) => Attempt;
   markFlashcardsSeen: (lesson: Lesson) => void;
   completeChallenge: () => void;
+  /** Badge ids earned since the last celebration was dismissed (reward popup queue). */
+  celebration: string[];
+  advanceCelebration: () => void;
+  dismissCelebration: () => void;
   setGoal: (lessonsPerWeek: number) => void;
   resetDemo: () => void;
   todayLesson: Lesson;
@@ -180,6 +185,8 @@ const Ctx = createContext<StoreCtx | null>(null);
 
 export function ProgressProvider({ children }: { children: ReactNode }) {
   const [progress, setProgress] = useState<ProgressState>(load);
+  const [celebration, setCelebration] = useState<string[]>([]);
+  const prevBadges = useRef<string[]>(progress.earnedBadges);
 
   useEffect(() => {
     try {
@@ -188,6 +195,23 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       /* storage unavailable */
     }
   }, [progress]);
+
+  // Queue freshly earned badges for the celebration popup (once each).
+  useEffect(() => {
+    const fresh = progress.earnedBadges.filter((b) => !prevBadges.current.includes(b));
+    prevBadges.current = progress.earnedBadges;
+    if (fresh.length > 0) {
+      setCelebration((q) => [...q, ...fresh.filter((b) => !q.includes(b))]);
+    }
+  }, [progress.earnedBadges]);
+
+  const advanceCelebration = useCallback(() => {
+    setCelebration((q) => q.slice(1));
+  }, []);
+
+  const dismissCelebration = useCallback(() => {
+    setCelebration([]);
+  }, []);
 
   const login = useCallback((name: string, role: Role) => {
     setProgress((p) => ({ ...p, userName: name.trim() || (role === "parent" ? "Parent" : "Learner"), role }));
@@ -386,13 +410,16 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       recordAttempt,
       markFlashcardsSeen,
       completeChallenge,
+      celebration,
+      advanceCelebration,
+      dismissCelebration,
       setGoal,
       resetDemo,
       todayLesson,
       recommendedRevision,
       weeklyRevisionSet,
     };
-  }, [progress, login, logout, recordAttempt, markFlashcardsSeen, completeChallenge, setGoal, resetDemo]);
+  }, [progress, login, logout, recordAttempt, markFlashcardsSeen, completeChallenge, celebration, advanceCelebration, dismissCelebration, setGoal, resetDemo]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

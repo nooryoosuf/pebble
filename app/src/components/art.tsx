@@ -14,6 +14,7 @@ import {
   Trophy,
   Lock,
 } from "lucide-react";
+import { milestones, specialBadges, consistencyBadges } from "../data/curriculum";
 import { cn } from "./ui";
 import worldMarket from "../assets/illustrations/world-market.svg";
 import worldFinance from "../assets/illustrations/world-finance.svg";
@@ -153,6 +154,17 @@ const fallbackTheme: BadgeTheme = {
   face: "#ffc800", ring: "#c98f00", ribbon: "#1cb0f6", glyphColor: "#7a4a00",
   Glyph: (p) => <Trophy size={p.size} strokeWidth={2.6} />,
 };
+
+/** Title, unlock text and XP for any milestone/badge id (for popups & spotlight). */
+export function badgeMeta(id: string): { title: string; detail: string; xp: number } | undefined {
+  const m = milestones.find((x) => x.milestoneId === id);
+  if (m) return { title: m.title, detail: m.description, xp: m.xpReward };
+  const s = specialBadges.find((x) => x.badgeId === id);
+  if (s) return { title: s.title, detail: s.criteria, xp: s.xpReward };
+  const c = consistencyBadges.find((x) => x.badgeId === id);
+  if (c) return { title: c.title, detail: c.criteria, xp: c.xpReward };
+  return undefined;
+}
 
 export function AchievementBadge({
   id,

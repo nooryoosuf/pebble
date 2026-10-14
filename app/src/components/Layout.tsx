@@ -3,6 +3,7 @@ import { BookOpenText, LayoutDashboard, Users, Trophy, CircleUserRound, LogOut, 
 import { useProgress, levelForXp } from "../lib/store";
 import { isSupabaseConfigured } from "../lib/supabase";
 import { AppIcon } from "./PebbleMascot";
+import { CelebrationOverlay } from "./BadgeOverlays";
 import { FlameArt, BoltArt } from "./art";
 import { cn } from "./ui";
 
@@ -112,6 +113,9 @@ const tabs = [
       </header>
 
       <main className="mx-auto max-w-5xl px-4 pt-6 pb-28 sm:pb-16">{children}</main>
+
+      {/* global badge reward popup */}
+      <CelebrationOverlay />
 
       {/* mobile bottom tab bar: roomy labeled tabs, home-indicator safe area */}
       <nav

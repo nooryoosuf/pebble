@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -17,6 +18,7 @@ import {
 import PebbleMascot from "../components/PebbleMascot";
 import { Button, Card, Badge, ProgressBar } from "../components/ui";
 import { ChapterArt, AchievementBadge, FlameArt, BoltArt, TrophyArt } from "../components/art";
+import { BadgeSpotlight } from "../components/BadgeOverlays";
 import { lessons, chapterById, milestones, specialBadges, consistencyBadges, masterLesson, isMasterComplete } from "../data/curriculum";
 import { useProgress, levelForXp } from "../lib/store";
 
@@ -43,6 +45,7 @@ export default function Dashboard() {
   const ChapterGlyph = chapterIcon[todayLesson.chapterId] ?? Crown;
   const isMasterDay = todayLesson.lessonId === masterLesson.lessonId;
   const masterDone = isMasterComplete(progress.attempts);
+  const [spotId, setSpotId] = useState<string | null>(null);
 
   if (!isLoggedIn) {
     return (
@@ -184,10 +187,10 @@ export default function Dashboard() {
             {allBadges.map((b) => {
               const earned = progress.earnedBadges.includes(b.id);
               return (
-                <div key={b.id} title={`${b.title} · +${b.xp} XP`} className="flex flex-col items-center gap-0.5 rounded-2xl border border-line/60 bg-white/60 px-1 py-1.5 text-center">
+                <button key={b.id} title={`${b.title} · +${b.xp} XP — tap to view`} onClick={() => setSpotId(b.id)} className="flex cursor-pointer flex-col items-center gap-0.5 rounded-2xl border border-line/60 bg-white/60 px-1 py-1.5 text-center transition hover:border-sky-400/60">
                   <AchievementBadge id={b.id} size={44} earned={earned} />
                   <span className={`text-[9px] leading-tight font-black ${earned ? "text-ink" : "text-faint"}`}>{b.title}</span>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -213,6 +216,9 @@ export default function Dashboard() {
           )}
         </Card>
       </motion.div>
+      {spotId && (
+        <BadgeSpotlight id={spotId} earned={progress.earnedBadges.includes(spotId)} onClose={() => setSpotId(null)} />
+      )}
     </div>
   );
 }

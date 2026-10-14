@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -11,6 +12,7 @@ import {
 import PebbleMascot from "../components/PebbleMascot";
 import { Button, Card, Badge, ProgressBar } from "../components/ui";
 import { AchievementBadge, FlameArt, BoltArt } from "../components/art";
+import { BadgeSpotlight } from "../components/BadgeOverlays";
 import { chapters, lessons } from "../data/curriculum";
 import { useProgress, levelForXp } from "../lib/store";
 
@@ -25,6 +27,7 @@ function startOfWeekMonday(d: Date): Date {
 export default function Profile() {
   const { progress, isLoggedIn } = useProgress();
   const { level, intoLevel, levelSize } = levelForXp(progress.xp);
+  const [spotId, setSpotId] = useState<string | null>(null);
 
   if (!isLoggedIn) {
     return (
@@ -149,9 +152,9 @@ export default function Profile() {
           {["ms-01", "bdg-flawless-balance", "bdg-streak-3", "bdg-reviser"].map((id) => {
             const earned = progress.earnedBadges.includes(id);
             return (
-              <div key={id} className="flex justify-center rounded-2xl border border-line/60 bg-white/60 py-1.5">
+              <button key={id} onClick={() => setSpotId(id)} aria-label={`View ${id} badge`} className="flex cursor-pointer justify-center rounded-2xl border border-line/60 bg-white/60 py-1.5 transition hover:border-sky-400/60">
                 <AchievementBadge id={id} size={48} earned={earned} />
-              </div>
+              </button>
             );
           })}
         </div>
@@ -164,6 +167,9 @@ export default function Profile() {
           )}
         </div>
       </Card>
+      {spotId && (
+        <BadgeSpotlight id={spotId} earned={progress.earnedBadges.includes(spotId)} onClose={() => setSpotId(null)} />
+      )}
     </div>
   );
 }

@@ -1,13 +1,16 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, CircleCheck } from "lucide-react";
 import { Button, Card, Badge, ProgressBar } from "../components/ui";
 import { AchievementBadge, TrophyArt } from "../components/art";
+import { BadgeSpotlight } from "../components/BadgeOverlays";
 import { lessons, milestones, specialBadges, consistencyBadges } from "../data/curriculum";
 import { useProgress } from "../lib/store";
 import { cn } from "../components/ui";
 
 export default function Achievements() {
   const { progress } = useProgress();
+  const [spotId, setSpotId] = useState<string | null>(null);
   const earned = new Set(progress.earnedBadges);
   const totalCount = milestones.length + specialBadges.length + consistencyBadges.length;
   const badgeXp =
@@ -42,7 +45,9 @@ export default function Achievements() {
             return (
               <Card key={m.milestoneId} className={cn(!isEarned && "bg-white/70")}>
                 <div className="flex items-center gap-3.5">
-                  <AchievementBadge id={m.milestoneId} size={68} earned={isEarned} />
+                  <button onClick={() => setSpotId(m.milestoneId)} aria-label={`View ${m.title} badge`} className="shrink-0 cursor-pointer rounded-full transition hover:scale-105">
+                    <AchievementBadge id={m.milestoneId} size={68} earned={isEarned} />
+                  </button>
                   <div className="min-w-0 flex-1">
                     <p className="text-[15px] font-black text-ink">{m.title} <span className="text-xs font-black text-sun-500">+{m.xpReward} XP</span></p>
                     <p className="text-[13px] leading-snug font-bold text-muted">{m.description}</p>
@@ -78,7 +83,9 @@ export default function Achievements() {
             return (
               <Card key={b.badgeId} className={cn(!isEarned && "bg-white/70")}>
                 <div className="flex items-center gap-3.5">
-                  <AchievementBadge id={b.badgeId} size={68} earned={isEarned} />
+                  <button onClick={() => setSpotId(b.badgeId)} aria-label={`View ${b.title} badge`} className="shrink-0 cursor-pointer rounded-full transition hover:scale-105">
+                    <AchievementBadge id={b.badgeId} size={68} earned={isEarned} />
+                  </button>
                   <div className="min-w-0 flex-1">
                     <p className="text-[15px] font-black text-ink">{b.title} <span className="text-xs font-black text-sun-500">+{b.xpReward} XP</span></p>
                     <p className="text-[13px] leading-snug font-bold text-muted">{b.criteria}</p>
@@ -112,7 +119,9 @@ export default function Achievements() {
             return (
               <Card key={c.id} className={cn("text-center", !isEarned && "bg-white/70")}>
                 <div className="flex justify-center">
-                  <AchievementBadge id={c.id} size={64} earned={isEarned} />
+                  <button onClick={() => setSpotId(c.id)} aria-label="View badge" className="cursor-pointer rounded-full transition hover:scale-105">
+                    <AchievementBadge id={c.id} size={64} earned={isEarned} />
+                  </button>
                 </div>
                 <p className="mt-1 text-sm font-black">{meta.title} <span className="text-xs font-black text-sun-500">+{meta.xpReward}</span></p>
                 <ProgressBar value={c.prog} max={c.max} bar="bg-tang-400" className="mx-auto mt-1.5 max-w-32" />
@@ -129,7 +138,9 @@ export default function Achievements() {
             return (
               <Card key={c.id} className={cn("text-center", !isEarned && "bg-white/70")}>
                 <div className="flex justify-center">
-                  <AchievementBadge id={c.id} size={64} earned={isEarned} />
+                  <button onClick={() => setSpotId(c.id)} aria-label="View badge" className="cursor-pointer rounded-full transition hover:scale-105">
+                    <AchievementBadge id={c.id} size={64} earned={isEarned} />
+                  </button>
                 </div>
                 <p className="mt-1 text-sm font-black">{meta.title} <span className="text-xs font-black text-sun-500">+{meta.xpReward}</span></p>
                 <p className="mt-1 text-xs font-bold text-muted">{isEarned ? "Unlocked — nicely done!" : c.hint}</p>
@@ -143,6 +154,9 @@ export default function Achievements() {
         <Link to="/profile"><Button variant="white" className="w-full"><ArrowLeft size={15} strokeWidth={3} /> Back to profile</Button></Link>
         <Link to="/journey"><Button className="w-full">Keep earning</Button></Link>
       </div>
+      {spotId && (
+        <BadgeSpotlight id={spotId} earned={earned.has(spotId)} onClose={() => setSpotId(null)} />
+      )}
     </div>
   );
 }
