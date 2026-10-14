@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { lessons } from "../data/curriculum";
 import { cn } from "./ui";
 
@@ -53,11 +53,37 @@ function variants(term: string): string[] {
 
 function Term({ entry, label, dark }: { entry: GlossaryEntry; label: string; dark?: boolean }) {
   const [open, setOpen] = useState(false);
+  const [shift, setShift] = useState(0);
+  const [below, setBelow] = useState(false);
+  const wrapRef = useRef<HTMLSpanElement>(null);
+  const tipRef = useRef<HTMLSpanElement>(null);
   const touchOnly = () =>
     typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
 
+  // Keep the bubble fully inside the viewport: clamp horizontally and flip
+  // below the word when there is no room above (e.g. near the sticky header).
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const anchor = wrapRef.current;
+      const tip = tipRef.current;
+      if (!anchor || !tip) return;
+      const r = anchor.getBoundingClientRect();
+      const tw = tip.offsetWidth;
+      const th = tip.offsetHeight;
+      const margin = 8;
+      const centered = r.left + r.width / 2 - tw / 2;
+      const clamped = Math.min(Math.max(centered, margin), window.innerWidth - margin - tw);
+      setShift(clamped - centered);
+      setBelow(r.top - th - 12 < 72);
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [open ]);
+
   return (
-    <span className="relative inline">
+    <span ref={wrapRef} className="relative inline">
       <button
         type="button"
         aria-expanded={open}
@@ -87,8 +113,13 @@ function Term({ entry, label, dark }: { entry: GlossaryEntry; label: string; dar
       </button>
       {open && (
         <span
+          ref={tipRef}
           role="tooltip"
-          className="absolute bottom-full left-1/2 z-30 mb-2.5 w-56 max-w-[min(15rem,72vw)] -translate-x-1/2 rounded-2xl border-2 border-line bg-white p-3 text-left shadow-[0_10px_30px_-10px_rgba(60,60,60,.4)]"
+          style={{ transform: `translateX(calc(-50% + ${shift}px))` }}
+          className={cn(
+            "absolute left-1/2 z-30 w-56 max-w-[min(15rem,72vw)] rounded-2xl border-2 border-line bg-white p-3 text-left shadow-[0_10px_30px_-10px_rgba(60,60,60,.4)]",
+            below ? "top-full mt-2.5" : "bottom-full mb-2.5",
+          )}
         >
           <span className="block text-[13px] font-black text-ink">{entry.term}</span>
           <span className="mt-0.5 block text-xs leading-relaxed font-semibold text-muted">
@@ -97,7 +128,16 @@ function Term({ entry, label, dark }: { entry: GlossaryEntry; label: string; dar
           <span className="mt-1.5 inline-block rounded-full bg-mint-100 px-2 py-0.5 text-[10px] font-black text-mint-800">
             Lesson {entry.topicLabel}
           </span>
-          <span className="absolute top-full left-1/2 -mt-[7px] h-3 w-3 -translate-x-1/2 rotate-45 border-r-2 border-b-2 border-line bg-white" aria-hidden />
+          <span
+            aria-hidden
+            style={{ left: `calc(50% - ${shift}px)` }}
+            className={cn(
+              "absolute h-3 w-3 -translate-x-1/2 rotate-45 border-line bg-white",
+              below
+                ? "-top-[7px] border-t-2 border-l-2"
+                : "-bottom-[7px] border-r-2 border-b-2",
+            )}
+          />
         </span>
       )}
     </span>
