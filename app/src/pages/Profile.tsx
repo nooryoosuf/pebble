@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import PebbleMascot from "../components/PebbleMascot";
 import { Button, Card, Badge, ProgressBar } from "../components/ui";
-import { Medal, FlameArt, BoltArt } from "../components/art";
+import { AchievementBadge, FlameArt, BoltArt } from "../components/art";
 import { chapters, lessons } from "../data/curriculum";
 import { useProgress, levelForXp } from "../lib/store";
 
@@ -150,12 +150,7 @@ export default function Profile() {
             const earned = progress.earnedBadges.includes(id);
             return (
               <div key={id} className="flex justify-center rounded-2xl border border-line/60 bg-white/60 py-1.5">
-                <Medal
-                  tone={id.startsWith("ms-") ? "sun" : id.includes("balance") ? "sky" : id.includes("streak") ? "tang" : "mint"}
-                  size={44}
-                  dimmed={!earned}
-                  icon={<Trophy size={16} strokeWidth={2.75} />}
-                />
+                <AchievementBadge id={id} size={48} earned={earned} />
               </div>
             );
           })}

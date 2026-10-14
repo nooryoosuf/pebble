@@ -12,12 +12,10 @@ import {
   Calculator,
   Ship,
   Building2,
-  Star,
-  Lock,
 } from "lucide-react";
 import PebbleMascot from "../components/PebbleMascot";
 import { Button, Card, Badge, ProgressBar } from "../components/ui";
-import { ChapterArt, Medal, FlameArt, BoltArt } from "../components/art";
+import { ChapterArt, AchievementBadge, FlameArt, BoltArt } from "../components/art";
 import { lessons, chapterById, milestones, specialBadges, consistencyBadges } from "../data/curriculum";
 import { useProgress, levelForXp } from "../lib/store";
 
@@ -33,15 +31,6 @@ const mascotLine = (pct: number | null) => {
   if (pct >= 80) return "Pebble-tastic! You smashed that. Onwards to the next stone!";
   if (pct >= 50) return "Good stepping! A little practise and this path will be smooth.";
   return "Every pebble starts small. Let's revise together and retry — you've got this.";
-};
-
-const badgeTone = (id: string): "sun" | "mint" | "sky" | "coral" | "grape" | "tang" => {
-  if (id.startsWith("ms-")) return (["sun", "sky", "tang", "grape"] as const)[Number(id.slice(-1)) % 4];
-  if (id.includes("balance") || id.includes("streak")) return "sky";
-  if (id.includes("productivity") || id.includes("comeback")) return "mint";
-  if (id.includes("corporate")) return "grape";
-  if (id.includes("reviser")) return "tang";
-  return "coral";
 };
 
 export default function Dashboard() {
@@ -181,12 +170,7 @@ export default function Dashboard() {
               const earned = progress.earnedBadges.includes(b.id);
               return (
                 <div key={b.id} title={`${b.title} · +${b.xp} XP`} className="flex flex-col items-center gap-0.5 rounded-2xl border border-line/60 bg-white/60 px-1 py-1.5 text-center">
-                  <Medal
-                    tone={badgeTone(b.id)}
-                    size={40}
-                    dimmed={!earned}
-                    icon={earned ? <Star size={17} strokeWidth={3} fill="currentColor" /> : <Lock size={15} strokeWidth={3} />}
-                  />
+                  <AchievementBadge id={b.id} size={44} earned={earned} />
                   <span className={`text-[9px] leading-tight font-black ${earned ? "text-ink" : "text-faint"}`}>{b.title}</span>
                 </div>
               );

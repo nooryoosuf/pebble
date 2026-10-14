@@ -1,4 +1,19 @@
 import type { ReactNode } from "react";
+import { useId } from "react";
+import {
+  Sprout,
+  Calculator,
+  Rocket,
+  Crown,
+  Globe,
+  Scale,
+  Gauge,
+  Building2,
+  RotateCcw,
+  Swords,
+  Trophy,
+  Lock,
+} from "lucide-react";
 import { cn } from "./ui";
 import worldMarket from "../assets/illustrations/world-market.svg";
 import worldFinance from "../assets/illustrations/world-finance.svg";
@@ -100,6 +115,98 @@ export function Medal({
       <span className="absolute top-[46%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-white drop-shadow-sm">
         {icon}
       </span>
+    </div>
+  );
+}
+
+/* ─── Achievement badges (Duolingo-style) ────────────────────────────────────
+   Every badge has its own identity: unique glyph, tier colours, chunky ring,
+   ribbon tails and gloss. Locked badges render as grey silhouettes with a
+   padlock chip. `id` is the milestone/badge id from the curriculum data.
+----------------------------------------------------------------------------- */
+
+interface BadgeTheme {
+  face: string;
+  ring: string;
+  ribbon: string;
+  glyphColor: string;
+  Glyph: (p: { size?: number }) => ReactNode;
+}
+
+const badgeThemes: Record<string, BadgeTheme> = {
+  "ms-01": { face: "#ffc800", ring: "#c98f00", ribbon: "#1cb0f6", glyphColor: "#7a4a00", Glyph: (p) => <Sprout size={p.size} strokeWidth={2.6} /> },
+  "ms-02": { face: "#1cb0f6", ring: "#0f7cb8", ribbon: "#ff6b6b", glyphColor: "#ffffff", Glyph: (p) => <Calculator size={p.size} strokeWidth={2.6} /> },
+  "ms-03": { face: "#ff9600", ring: "#b25f00", ribbon: "#1cb0f6", glyphColor: "#ffffff", Glyph: (p) => <Rocket size={p.size} strokeWidth={2.6} /> },
+  "ms-04": { face: "#a560ff", ring: "#6b32c4", ribbon: "#ffc800", glyphColor: "#ffffff", Glyph: (p) => <Crown size={p.size} strokeWidth={2.6} /> },
+  "bdg-island-economist": { face: "#ff6b6b", ring: "#b23a3a", ribbon: "#ffc800", glyphColor: "#ffffff", Glyph: (p) => <Globe size={p.size} strokeWidth={2.6} /> },
+  "bdg-flawless-balance": { face: "#1cb0f6", ring: "#0f7cb8", ribbon: "#58cc02", glyphColor: "#ffffff", Glyph: (p) => <Scale size={p.size} strokeWidth={2.6} /> },
+  "bdg-productivity-pro": { face: "#58cc02", ring: "#377e00", ribbon: "#ff9600", glyphColor: "#ffffff", Glyph: (p) => <Gauge size={p.size} strokeWidth={2.6} /> },
+  "bdg-corporate-architect": { face: "#a560ff", ring: "#6b32c4", ribbon: "#58cc02", glyphColor: "#ffffff", Glyph: (p) => <Building2 size={p.size} strokeWidth={2.6} /> },
+  "bdg-streak-3": { face: "#ffc800", ring: "#c98f00", ribbon: "#ff6b6b", glyphColor: "#7a4a00", Glyph: (p) => <FlameArt size={p.size} /> },
+  "bdg-streak-7": { face: "#ff9600", ring: "#b25f00", ribbon: "#ff6b6b", glyphColor: "#ffffff", Glyph: (p) => <FlameArt size={p.size} /> },
+  "bdg-comeback": { face: "#58cc02", ring: "#377e00", ribbon: "#1cb0f6", glyphColor: "#ffffff", Glyph: (p) => <RotateCcw size={p.size} strokeWidth={2.6} /> },
+  "bdg-reviser": { face: "#a560ff", ring: "#6b32c4", ribbon: "#ff9600", glyphColor: "#ffffff", Glyph: (p) => <Swords size={p.size} strokeWidth={2.6} /> },
+};
+
+const fallbackTheme: BadgeTheme = {
+  face: "#ffc800", ring: "#c98f00", ribbon: "#1cb0f6", glyphColor: "#7a4a00",
+  Glyph: (p) => <Trophy size={p.size} strokeWidth={2.6} />,
+};
+
+export function AchievementBadge({
+  id,
+  size = 56,
+  earned = true,
+  className,
+}: {
+  id: string;
+  size?: number;
+  earned?: boolean;
+  className?: string;
+}) {
+  const t = badgeThemes[id] ?? fallbackTheme;
+  const gid = useId();
+  const g = Math.round(size * 0.36);
+  return (
+    <div
+      className={cn("relative shrink-0", className)}
+      style={{ width: size, height: size + 14 }}
+      aria-hidden
+    >
+      <svg
+        viewBox="0 0 64 78"
+        width={size}
+        height={size + 14}
+        className={cn(!earned && "opacity-60 grayscale")}
+      >
+        <defs>
+          <radialGradient id={gid} cx="38%" cy="30%" r="80%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity=".55" />
+            <stop offset="45%" stopColor="#ffffff" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        {earned && <ellipse cx="32" cy="74" rx="19" ry="2.6" fill="rgba(60,60,60,.14)" />}
+        <path d="M26 2 L20 30 L26 27 L31 32 L31 2 Z" fill={t.ribbon} opacity=".92" />
+        <path d="M38 2 L44 30 L38 27 L33 32 L33 2 Z" fill={t.ribbon} opacity=".92" />
+        <circle cx="32" cy="48" r="24" fill={t.face} stroke={t.ring} strokeWidth="5" />
+        <circle cx="32" cy="48" r="24" fill={`url(#${gid})`} />
+        <circle cx="32" cy="48" r="18" fill="none" stroke="#ffffff" strokeOpacity=".4" strokeWidth="2" />
+        <ellipse cx="25" cy="40" rx="8" ry="4" fill="#ffffff" opacity=".35" transform="rotate(-24 25 40)" />
+      </svg>
+      <span
+        className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2"
+        style={{ top: "61.5%", color: earned ? t.glyphColor : "#8a8a8a", filter: earned ? "drop-shadow(0 2px 0 rgba(0,0,0,.25))" : undefined }}
+      >
+        <t.Glyph size={g} />
+      </span>
+      {!earned && (
+        <span
+          className="absolute grid place-items-center rounded-full border-2 border-white bg-[#3c3c3c] text-white shadow-md"
+          style={{ width: size * 0.32, height: size * 0.32, top: "70%", left: "64%" }}
+        >
+          <Lock size={Math.max(10, Math.round(size * 0.16))} strokeWidth={3} />
+        </span>
+      )}
     </div>
   );
 }

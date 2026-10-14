@@ -1,18 +1,10 @@
 import { Link } from "react-router-dom";
-import { ArrowLeft, CircleCheck, Lock, Swords, Repeat2, Flame } from "lucide-react";
+import { ArrowLeft, CircleCheck } from "lucide-react";
 import { Button, Card, Badge, ProgressBar } from "../components/ui";
-import { Medal, TrophyArt } from "../components/art";
+import { AchievementBadge, TrophyArt } from "../components/art";
 import { lessons, milestones, specialBadges, consistencyBadges } from "../data/curriculum";
 import { useProgress } from "../lib/store";
 import { cn } from "../components/ui";
-
-const milestoneTone = ["sun", "sky", "tang", "grape"] as const;
-const specialTone: Record<string, "coral" | "sky" | "mint" | "grape"> = {
-  "bdg-island-economist": "coral",
-  "bdg-flawless-balance": "sky",
-  "bdg-productivity-pro": "mint",
-  "bdg-corporate-architect": "grape",
-};
 
 export default function Achievements() {
   const { progress } = useProgress();
@@ -43,15 +35,14 @@ export default function Achievements() {
         <h2 className="text-lg font-black text-ink">World trophies</h2>
         <p className="text-[13px] font-bold text-muted">Clear every mission in a world to lift its trophy.</p>
         <div className="mt-2 space-y-2.5">
-          {milestones.map((m, i) => {
+          {milestones.map((m) => {
             const chLessons = lessons.filter((l) => l.chapterId === m.chapterId);
             const done = chLessons.filter((l) => progress.completedLessons.includes(l.lessonId)).length;
             const isEarned = earned.has(m.milestoneId);
             return (
               <Card key={m.milestoneId} className={cn(!isEarned && "bg-white/70")}>
                 <div className="flex items-center gap-3.5">
-                  <Medal tone={milestoneTone[i % milestoneTone.length]} size={60} dimmed={!isEarned}
-                    icon={isEarned ? <CircleCheck size={24} strokeWidth={2.75} /> : <Lock size={20} strokeWidth={2.75} />} />
+                  <AchievementBadge id={m.milestoneId} size={68} earned={isEarned} />
                   <div className="min-w-0 flex-1">
                     <p className="text-[15px] font-black text-ink">{m.title} <span className="text-xs font-black text-sun-500">+{m.xpReward} XP</span></p>
                     <p className="text-[13px] leading-snug font-bold text-muted">{m.description}</p>
@@ -87,8 +78,7 @@ export default function Achievements() {
             return (
               <Card key={b.badgeId} className={cn(!isEarned && "bg-white/70")}>
                 <div className="flex items-center gap-3.5">
-                  <Medal tone={specialTone[b.badgeId] ?? "sky"} size={60} dimmed={!isEarned}
-                    icon={isEarned ? <CircleCheck size={24} strokeWidth={2.75} /> : <Lock size={20} strokeWidth={2.75} />} />
+                  <AchievementBadge id={b.badgeId} size={68} earned={isEarned} />
                   <div className="min-w-0 flex-1">
                     <p className="text-[15px] font-black text-ink">{b.title} <span className="text-xs font-black text-sun-500">+{b.xpReward} XP</span></p>
                     <p className="text-[13px] leading-snug font-bold text-muted">{b.criteria}</p>
@@ -114,15 +104,15 @@ export default function Achievements() {
         <p className="text-[13px] font-bold text-muted">Showing up and bouncing back.</p>
         <div className="mt-2 grid gap-2.5 sm:grid-cols-2">
           {[
-            { id: "bdg-streak-3", icon: <Flame size={20} strokeWidth={2.75} />, prog: Math.min(progress.streakDays, 3), max: 3, hint: `${progress.streakDays}/3-day streak` },
-            { id: "bdg-streak-7", icon: <Flame size={20} strokeWidth={2.75} />, prog: Math.min(progress.streakDays, 7), max: 7, hint: `${progress.streakDays}/7-day streak` },
+            { id: "bdg-streak-3", prog: Math.min(progress.streakDays, 3), max: 3, hint: `${progress.streakDays}/3-day streak` },
+            { id: "bdg-streak-7", prog: Math.min(progress.streakDays, 7), max: 7, hint: `${progress.streakDays}/7-day streak` },
           ].map((c) => {
             const meta = consistencyBadges.find((b) => b.badgeId === c.id)!;
             const isEarned = earned.has(c.id);
             return (
               <Card key={c.id} className={cn("text-center", !isEarned && "bg-white/70")}>
                 <div className="flex justify-center">
-                  <Medal tone="tang" size={56} dimmed={!isEarned} icon={c.icon} />
+                  <AchievementBadge id={c.id} size={64} earned={isEarned} />
                 </div>
                 <p className="mt-1 text-sm font-black">{meta.title} <span className="text-xs font-black text-sun-500">+{meta.xpReward}</span></p>
                 <ProgressBar value={c.prog} max={c.max} bar="bg-tang-400" className="mx-auto mt-1.5 max-w-32" />
@@ -131,15 +121,15 @@ export default function Achievements() {
             );
           })}
           {[
-            { id: "bdg-comeback", icon: <Repeat2 size={20} strokeWidth={2.75} />, hint: "Score 20%+ higher on a mission replay" },
-            { id: "bdg-reviser", icon: <Swords size={20} strokeWidth={2.75} />, hint: progress.challengeDays.length > 0 ? `${progress.challengeDays.length} showdown${progress.challengeDays.length > 1 ? "s" : ""} cleared` : "Finish a weekly showdown" },
+            { id: "bdg-comeback", hint: "Score 20%+ higher on a mission replay" },
+            { id: "bdg-reviser", hint: progress.challengeDays.length > 0 ? `${progress.challengeDays.length} showdown${progress.challengeDays.length > 1 ? "s" : ""} cleared` : "Finish a weekly showdown" },
           ].map((c) => {
             const meta = consistencyBadges.find((b) => b.badgeId === c.id)!;
             const isEarned = earned.has(c.id);
             return (
               <Card key={c.id} className={cn("text-center", !isEarned && "bg-white/70")}>
                 <div className="flex justify-center">
-                  <Medal tone="mint" size={56} dimmed={!isEarned} icon={c.icon} />
+                  <AchievementBadge id={c.id} size={64} earned={isEarned} />
                 </div>
                 <p className="mt-1 text-sm font-black">{meta.title} <span className="text-xs font-black text-sun-500">+{meta.xpReward}</span></p>
                 <p className="mt-1 text-xs font-bold text-muted">{isEarned ? "Unlocked — nicely done!" : c.hint}</p>
