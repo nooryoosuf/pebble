@@ -156,7 +156,16 @@ export function ScoreRing({ pct, size = 120 }: { pct: number; size?: number }) {
         transform="rotate(-90 55 55)"
         style={{ transition: "stroke-dashoffset .8s ease" }}
       />
-      <text x="55" y="52" textAnchor="middle" fontWeight={900} fontSize="26" fill="#3c3c3c" fontFamily="Nunito, sans-serif">
+      <text
+        x="55"
+        y="55"
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontWeight={900}
+        fontSize={String(pct).length > 2 ? 21 : 26}
+        fill="#3c3c3c"
+        fontFamily="Nunito, sans-serif"
+      >
         {pct}%
       </text>
     </svg>
