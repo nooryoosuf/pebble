@@ -25,7 +25,7 @@ function startOfWeekMonday(d: Date): Date {
 }
 
 export default function Profile() {
-  const { progress, isLoggedIn, accountRole } = useProgress();
+  const { progress, isLoggedIn, accountRole, isAdmin } = useProgress();
   const { level, intoLevel, levelSize } = levelForXp(progress.xp);
   const [spotId, setSpotId] = useState<string | null>(null);
 
@@ -160,7 +160,9 @@ export default function Profile() {
         </div>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <Link to="/achievements"><Button variant="blue" className="w-full">Achievements</Button></Link>
-          {accountRole === "parent" ? (
+          {isAdmin ? (
+            <Link to="/admin"><Button variant="white" className="w-full"><ShieldCheck size={16} strokeWidth={2.75} /> Admin console</Button></Link>
+          ) : accountRole === "parent" ? (
             <Link to="/parent"><Button variant="white" className="w-full"><Users size={16} strokeWidth={2.75} /> Parent reports</Button></Link>
           ) : (
             <Link to="/challenge"><Button variant="white" className="w-full"><Swords size={16} strokeWidth={2.75} /> Weekly showdown</Button></Link>

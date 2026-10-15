@@ -76,6 +76,24 @@ Without keys the app boots to a “Backend not connected” state instead of fak
 3. A second family signing up sees none of the first family's data.
 4. `npm.cmd run build` passes; `app/dist` contains `manifest.webmanifest`, `sw.js`, `_redirects`.
 
+## Admin console (owner-only platform stats)
+
+The app has an **Admin** area (`/admin`, revealed in nav + profile only for admins)
+showing live platform numbers — families, students, attempts, active users,
+average score, XP, badges, master clears, 14-day activity, a per-family table,
+and the latest activity feed. Everything comes from real rows via the
+`admin_overview` RPC; locked rows stay locked for everyone else.
+
+To make yourself admin (after signing up as a parent on the live site):
+
+```sql
+insert into public.admins (user_id)
+select id from auth.users where email = 'you@example.com';
+```
+
+Run it in Supabase → SQL Editor. Reload the app — the Admin tab appears. Nobody
+can grant this to themselves: the table is writable only with the service key.
+
 ## Credits
 
 - World illustrations: [unDraw](https://undraw.co) scenes by Katerina Limpitsouni (free for commercial use), vendored via the MIT-licensed [`react-undraw-illustrations`](https://github.com/GraemeFulton/react-undraw-illustrations) package (`app/src/assets/illustrations/`).

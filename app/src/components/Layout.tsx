@@ -1,5 +1,5 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { BookOpenText, LayoutDashboard, Users, Trophy, CircleUserRound, LogOut, Flame, CloudCheck, CloudOff, Loader2 } from "lucide-react";
+import { BookOpenText, LayoutDashboard, Users, Trophy, CircleUserRound, ShieldCheck, LogOut, Flame, CloudCheck, CloudOff, Loader2 } from "lucide-react";
 import { useProgress, levelForXp } from "../lib/store";
 import { AppIcon } from "./PebbleMascot";
 import { CelebrationOverlay } from "./BadgeOverlays";
@@ -34,7 +34,7 @@ function SyncDot() {
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { progress, signOut, isLoggedIn, accountRole, accountName, authStatus } = useProgress();
+  const { progress, signOut, isLoggedIn, accountRole, accountName, authStatus, isAdmin } = useProgress();
   const nav = useNavigate();
   const { level } = levelForXp(progress.xp);
 
@@ -101,6 +101,21 @@ const tabs = [
                   <t.icon size={16} strokeWidth={2.75} /> <span className="hidden md:inline">{t.label}</span>
                 </NavLink>
               ))}
+              {isAdmin && (
+                <NavLink
+                  to="/admin"
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-1.5 rounded-2xl border-b-4 px-3 py-1.5 text-sm font-black transition",
+                      isActive
+                        ? "border-ink bg-ink text-white"
+                        : "border-transparent text-muted hover:bg-parchment hover:text-ink",
+                    )
+                  }
+                >
+                  <ShieldCheck size={16} strokeWidth={2.75} /> <span className="hidden md:inline">Admin</span>
+                </NavLink>
+              )}
               {isLoggedIn && (
                 <button
                   onClick={() => {

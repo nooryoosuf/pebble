@@ -87,6 +87,7 @@ interface StoreCtx {
   accountName: string;
   students: LinkedStudent[];
   activeStudentId: string | null;
+  isAdmin: boolean;
   isLoggedIn: boolean;
   canLearn: boolean;
   signUp: (input: { displayName: string; email: string; password: string; role: Role }) => Promise<boolean>;
@@ -227,6 +228,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   const [accountName, setAccountName] = useState("");
   const [students, setStudents] = useState<LinkedStudent[]>([]);
   const [activeStudentId, setActiveStudentId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [progress, setProgress] = useState<ProgressState>(emptyProgress);
   const [syncMode, setSyncMode] = useState<SyncMode>("saved");
   const [dirty, setDirty] = useState(0);
@@ -334,6 +336,16 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       setAccountRole(profile.role);
       setAccountName(profile.displayName);
       setAuthError(null);
+      try {
+        const { data: adminRow } = await supabase!
+          .from("admins")
+          .select("user_id")
+          .eq("user_id", uid)
+          .maybeSingle();
+        setIsAdmin(!!adminRow);
+      } catch {
+        setIsAdmin(false);
+      }
       if (profile.role === "student") {
         setStudents([]);
         setActiveStudentId(uid);
@@ -377,6 +389,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         setUserId(null);
         setAccountRole(null);
         setAccountName("");
+        setIsAdmin(false);
         setStudents([]);
         setActiveStudentId(null);
         setProgress(emptyProgress());
@@ -481,6 +494,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       setUserId(null);
       setAccountRole(null);
       setAccountName("");
+      setIsAdmin(false);
       setStudents([]);
       setActiveStudentId(null);
       setProgress(emptyProgress());
@@ -710,6 +724,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       accountName,
       students,
       activeStudentId,
+      isAdmin,
       isLoggedIn: authStatus === "ready" && !!userId,
       canLearn: accountRole === "student" && !!userId && activeStudentId === userId,
       signUp,
@@ -731,7 +746,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       recommendedRevision,
       weeklyRevisionSet,
     };
-  }, [authStatus, authError, userId, accountRole, accountName, students, activeStudentId, syncMode, progress, signUp, signIn, signOut, addChild, switchStudent, retrySync, recordAttempt, markFlashcardsSeen, completeChallenge, celebration, advanceCelebration, dismissCelebration, setGoal]);
+  }, [authStatus, authError, userId, accountRole, accountName, students, activeStudentId, isAdmin, syncMode, progress, signUp, signIn, signOut, addChild, switchStudent, retrySync, recordAttempt, markFlashcardsSeen, completeChallenge, celebration, advanceCelebration, dismissCelebration, setGoal]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
