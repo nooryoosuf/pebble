@@ -15,3 +15,7 @@ Thumbs.db
 !.vscode/extensions.json
 .idea/
 *.suo
+
+# Supabase CLI local state
+app/supabase/.temp/
+app/supabase/.branches/
