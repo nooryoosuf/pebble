@@ -17,7 +17,11 @@ const cors = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+// NOTE: the CLI refuses SUPABASE_-prefixed secret names, so the service key
+// is stored as SERVICE_ROLE_KEY (dashboard-set SUPABASE_SERVICE_ROLE_KEY
+// also works via the fallback).
+const SERVICE_KEY = Deno.env.get("SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+if (!SERVICE_KEY) throw new Error("Missing SERVICE_ROLE_KEY function secret");
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
