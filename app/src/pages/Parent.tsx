@@ -106,7 +106,7 @@ function ChildManager() {
 }
 
 export default function Parent() {
-  const { progress, isLoggedIn, setGoal, accountRole, accountName, students, activeStudentId, sync } = useProgress();
+  const { progress, isLoggedIn, setGoal, accountRole, accountName, students, activeStudentId, sync, demoMode } = useProgress();
   const [goalDraft, setGoalDraft] = useState(progress.goals.lessonsPerWeek);
 
   // keep the goal editor in sync when switching children
@@ -159,7 +159,11 @@ export default function Parent() {
             </p>
             <h1 className="text-2xl font-black">Learning report</h1>
             <p className="text-xs font-semibold text-slate-muted">
-              {sync.mode === "offline" ? "You're offline — showing the last synced snapshot." : "Synced from your child's saved account activity."}
+              {demoMode
+                ? "Sample family preview — demo data, nothing is saved to an account."
+                : sync.mode === "offline"
+                  ? "You're offline — showing the last synced snapshot."
+                  : "Synced from your child's saved account activity."}
             </p>
           </div>
         </div>
@@ -174,7 +178,7 @@ export default function Parent() {
         </div>
       )}
 
-      {accountRole === "student" && (
+      {accountRole === "student" && !demoMode && (
         <Card className="mt-3 text-center">
           <p className="text-lg font-black">This corner is for parents</p>
           <p className="mx-auto max-w-md text-sm font-semibold text-slate-muted">
@@ -194,7 +198,8 @@ export default function Parent() {
         </Card>
       )}
 
-      {accountRole === "parent" && students.length > 0 && attempts.length === 0 ? (
+      {/* In the demo tour, preview the sample family's report (no real children). */}
+      {(demoMode || (accountRole === "parent" && students.length > 0)) && attempts.length === 0 ? (
         <Card className="mt-4 text-center">
           <EmptyArt className="mx-auto h-28 w-auto" />
           <p className="mt-2 text-lg font-black">No activity yet</p>
@@ -203,7 +208,7 @@ export default function Parent() {
           </p>
         </Card>
       ) : null}
-      {accountRole === "parent" && students.length > 0 && attempts.length > 0 ? (
+      {(demoMode || (accountRole === "parent" && students.length > 0)) && attempts.length > 0 ? (
         <div className="mt-4 space-y-3">
           {/* KPI row */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

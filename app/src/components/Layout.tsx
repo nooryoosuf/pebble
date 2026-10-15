@@ -34,7 +34,7 @@ function SyncDot() {
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { progress, signOut, isLoggedIn, accountRole, accountName, authStatus, isAdmin } = useProgress();
+  const { progress, signOut, isLoggedIn, accountRole, accountName, authStatus, isAdmin, demoMode, exitDemo, resetDemoTour } = useProgress();
   const nav = useNavigate();
   const { level } = levelForXp(progress.xp);
 
@@ -144,17 +144,35 @@ const tabs = [
                 <LogOut size={17} strokeWidth={2.75} />
               </button>
             )}
-            {isLoggedIn && (
+            {isLoggedIn && !demoMode && (
               <div className="hidden sm:block">
                 <SyncDot />
               </div>
             )}
           </div>
         </div>
-        {authStatus === "unconfigured" && (
-          <div className="border-t-2 border-tang-400/50 bg-tang-100 px-4 py-1.5 text-center text-xs font-extrabold text-tang-700">
-            Backend not connected — the family that hosts Pebble needs to add the Supabase keys (see README).
+        {demoMode ? (
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-t-2 border-sky-400/50 bg-sky-100 px-4 py-1.5 text-center text-xs font-extrabold text-sky-700">
+            <span>Demo tour — sample data, nothing is saved to an account.</span>
+            <span className="inline-flex items-center gap-2">
+              <button onClick={resetDemoTour} className="cursor-pointer underline hover:text-sky-800">Reset tour</button>
+              <button
+                onClick={() => {
+                  exitDemo();
+                  nav("/");
+                }}
+                className="cursor-pointer underline hover:text-sky-800"
+              >
+                Exit demo
+              </button>
+            </span>
           </div>
+        ) : (
+          authStatus === "unconfigured" && (
+            <div className="border-t-2 border-tang-400/50 bg-tang-100 px-4 py-1.5 text-center text-xs font-extrabold text-tang-700">
+              Backend not connected — the family that hosts Pebble needs to add the Supabase keys (see README).
+            </div>
+          )
         )}
       </header>
 

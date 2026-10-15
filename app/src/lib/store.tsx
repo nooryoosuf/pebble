@@ -97,6 +97,11 @@ interface StoreCtx {
   switchStudent: (id: string) => void;
   retrySync: () => void;
   sync: { mode: SyncMode };
+  /** Local guided tour with sample data (for teacher demos — never touches the backend). */
+  demoMode: boolean;
+  enterDemo: () => void;
+  exitDemo: () => void;
+  resetDemoTour: () => void;
   // active learner snapshot (self for students, selected child for parents)
   progress: ProgressState;
   recordAttempt: (a: Omit<Attempt, "id" | "dateISO" | "scorePercent" | "autoCorrect" | "autoTotal" | "xpEarned" | "band"> & { dateISO?: string }) => Attempt;
@@ -218,6 +223,102 @@ function perObjectiveScore(
   return { correct, total };
 }
 
+// ─── Demo tour dataset ───────────────────────────────────────────────────────
+// A believable sample learner for teacher walkthroughs: a 5-day streak,
+// World 1 cleared (with a comeback story), World 2 half-done with one wobbly
+// mission, showdowns cleared. XP is computed with the same xpFor() rules so
+// every number on screen stays internally consistent. Clearly labelled DEMO
+// in the UI; stored only on-device under DEMO_KEY; never synced.
+
+const DEMO_KEY = "pebble-demo-tour-v1";
+
+function demoDay(offset: number): string {
+  return new Date(Date.now() + offset * 86400000).toISOString().slice(0, 10);
+}
+
+function buildDemoProgress(): ProgressState {
+  interface Spec {
+    lessonId: string; day: number;
+    mcq: Record<string, string>; tf: Record<string, boolean>;
+    challengeDone?: boolean; secs?: number;
+  }
+  const specs: Spec[] = [
+    { lessonId: "lesson-1.1", day: -4, mcq: { "mcq-01-01": "B", "mcq-01-03": "A" }, tf: { "tf-01-01": false }, secs: 540 },
+    { lessonId: "lesson-1.1", day: -3, mcq: { "mcq-01-01": "B", "mcq-01-03": "B" }, tf: { "tf-01-01": false }, secs: 380 },
+    { lessonId: "lesson-1.2", day: -3, mcq: { "mcq-01-02": "C" }, tf: {}, challengeDone: true, secs: 410 },
+    { lessonId: "lesson-1.3", day: -2, mcq: {}, tf: { "tf-01-02": true }, secs: 350 },
+    { lessonId: "lesson-2.1", day: -1, mcq: { "mcq-02-01": "C", "mcq-02-02": "B" }, tf: { "tf-02-02": false }, secs: 620 },
+    { lessonId: "lesson-2.2", day: 0, mcq: {}, tf: { "tf-02-01": false }, secs: 300 },
+  ];
+  const seen = new Set<string>();
+  let xp = 0;
+  const attempts: Attempt[] = specs.map((s, i) => {
+    const lesson = lessons.find((l) => l.lessonId === s.lessonId)!;
+    const { correct, total, percent } = scoreLesson(lesson, s.mcq, s.tf);
+    const band = bandFor(percent);
+    const first = !seen.has(s.lessonId);
+    seen.add(s.lessonId);
+    const xpEarned = xpFor(percent, band, first);
+    xp += xpEarned;
+    return {
+      id: `att-demo-${i + 1}`,
+      lessonId: s.lessonId,
+      dateISO: `${demoDay(s.day)}T10:00:00.000Z`,
+      mcqAnswers: s.mcq,
+      tfAnswers: s.tf,
+      shortAnswerSelfMarks: {},
+      challengeDone: !!s.challengeDone,
+      scorePercent: percent,
+      autoCorrect: correct,
+      autoTotal: total,
+      xpEarned,
+      band,
+      durationSeconds: s.secs,
+    };
+  });
+  const badgeXp = (id: string): number =>
+    milestones.find((m) => m.milestoneId === id)?.xpReward ??
+    [...specialBadges, ...consistencyBadges].find((b) => b.badgeId === id)?.xpReward ?? 0;
+  const earnedBadges = ["ms-01", "bdg-island-economist", "bdg-streak-3", "bdg-comeback", "bdg-reviser"];
+  for (const id of earnedBadges) xp += badgeXp(id);
+  const studyDates = [-4, -3, -2, -1, 0].map(demoDay);
+  return {
+    userName: "Demo Student",
+    role: "student",
+    xp,
+    streakDays: 5,
+    lastStudyDate: demoDay(0),
+    studyDates,
+    completedLessons: ["lesson-1.1", "lesson-1.2", "lesson-1.3", "lesson-2.1"],
+    attempts,
+    objectiveMastery: {
+      "lo-1.1.1": { attempts: 2, bestScore: 100, mastered: true },
+      "lo-1.1.2": { attempts: 2, bestScore: 100, mastered: true },
+      "lo-1.1.3": { attempts: 2, bestScore: 100, mastered: true },
+      "lo-1.2.2": { attempts: 1, bestScore: 100, mastered: false },
+      "lo-1.3.1": { attempts: 1, bestScore: 100, mastered: false },
+      "lo-2.1.1": { attempts: 1, bestScore: 100, mastered: false },
+      "lo-2.1.2": { attempts: 1, bestScore: 100, mastered: false },
+      "lo-2.1.3": { attempts: 1, bestScore: 100, mastered: false },
+      "lo-2.2.1": { attempts: 1, bestScore: 0, mastered: false },
+    },
+    earnedBadges,
+    goals: { lessonsPerWeek: 5 },
+    flashcardsSeen: {},
+    challengeDays: [demoDay(-1), demoDay(0)],
+  };
+}
+
+function readDemo(): ProgressState | null {
+  try {
+    const raw = localStorage.getItem(DEMO_KEY);
+    if (!raw) return null;
+    return { ...emptyProgress(), ...JSON.parse(raw) };
+  } catch {
+    return null;
+  }
+}
+
 const Ctx = createContext<StoreCtx | null>(null);
 
 export function ProgressProvider({ children }: { children: ReactNode }) {
@@ -233,6 +334,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   const [syncMode, setSyncMode] = useState<SyncMode>("saved");
   const [dirty, setDirty] = useState(0);
   const [celebration, setCelebration] = useState<string[]>([]);
+  const [demoMode, setDemoMode] = useState(false);
   const prevBadges = useRef<string[]>([]);
 
   const progressRef = useRef(progress);
@@ -407,7 +509,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
 
   // ── persist active snapshot (idempotent full-state sync, retry-safe) ──
   useEffect(() => {
-    if (dirty === 0) return;
+    if (dirty === 0 || demoMode) return;
     const sid = activeRef.current;
     const uid = userRef.current;
     if (!sid || !uid || !isSupabaseConfigured) return;
@@ -434,7 +536,17 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [dirty]);
+  }, [dirty, demoMode]);
+
+  // keep the on-device demo tour across refreshes (still never synced)
+  useEffect(() => {
+    if (!demoMode) return;
+    try {
+      localStorage.setItem(DEMO_KEY, JSON.stringify(progressRef.current));
+    } catch {
+      /* storage unavailable */
+    }
+  }, [demoMode, progress]);
 
   const signUp = useCallback(
     async (input: { displayName: string; email: string; password: string; role: Role }) => {
@@ -535,6 +647,49 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   );
 
   const retrySync = useCallback(() => setDirty((d) => d + 1), []);
+
+  const enterDemo = useCallback(() => {
+    const seeded = readDemo() ?? buildDemoProgress();
+    try {
+      localStorage.setItem(DEMO_KEY, JSON.stringify(seeded));
+    } catch {
+      /* storage unavailable */
+    }
+    prevBadges.current = seeded.earnedBadges;
+    setCelebration([]);
+    setProgress(seeded);
+    setUserId("demo");
+    setAccountRole("student");
+    setAccountName(seeded.userName);
+    setStudents([]);
+    setActiveStudentId("demo");
+    setAuthError(null);
+    setSyncMode("saved");
+    setDemoMode(true);
+  }, []);
+
+  const exitDemo = useCallback(() => {
+    setDemoMode(false);
+    setUserId(null);
+    setAccountRole(null);
+    setAccountName("");
+    setStudents([]);
+    setActiveStudentId(null);
+    setProgress(emptyProgress());
+    setCelebration([]);
+  }, []);
+
+  const resetDemoTour = useCallback(() => {
+    const seeded = buildDemoProgress();
+    try {
+      localStorage.setItem(DEMO_KEY, JSON.stringify(seeded));
+    } catch {
+      /* storage unavailable */
+    }
+    prevBadges.current = seeded.earnedBadges;
+    setCelebration([]);
+    setProgress(seeded);
+  }, []);
 
   const setGoal = useCallback((lessonsPerWeek: number) => {
     setProgress((p) => ({ ...p, goals: { lessonsPerWeek: Math.max(1, Math.min(12, lessonsPerWeek)) } }));
@@ -725,14 +880,18 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       students,
       activeStudentId,
       isAdmin,
-      isLoggedIn: authStatus === "ready" && !!userId,
-      canLearn: accountRole === "student" && !!userId && activeStudentId === userId,
+      isLoggedIn: demoMode || (authStatus === "ready" && !!userId),
+      canLearn: demoMode || (accountRole === "student" && !!userId && activeStudentId === userId),
       signUp,
       signIn,
       signOut,
       addChild,
       switchStudent,
       retrySync,
+      demoMode,
+      enterDemo,
+      exitDemo,
+      resetDemoTour,
       sync: { mode: syncMode },
       progress,
       recordAttempt,
@@ -746,7 +905,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       recommendedRevision,
       weeklyRevisionSet,
     };
-  }, [authStatus, authError, userId, accountRole, accountName, students, activeStudentId, isAdmin, syncMode, progress, signUp, signIn, signOut, addChild, switchStudent, retrySync, recordAttempt, markFlashcardsSeen, completeChallenge, celebration, advanceCelebration, dismissCelebration, setGoal]);
+  }, [authStatus, authError, userId, accountRole, accountName, students, activeStudentId, isAdmin, syncMode, progress, signUp, signIn, signOut, addChild, switchStudent, retrySync, demoMode, enterDemo, exitDemo, resetDemoTour, recordAttempt, markFlashcardsSeen, completeChallenge, celebration, advanceCelebration, dismissCelebration, setGoal]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

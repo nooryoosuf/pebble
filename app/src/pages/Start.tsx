@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useNavigate, Link, Navigate } from "react-router-dom";
-import { GraduationCap, Users, ArrowRight, ArrowLeft, TriangleAlert, Loader2 } from "lucide-react";
+import { GraduationCap, Users, ArrowRight, ArrowLeft, TriangleAlert, Loader2, Sparkles } from "lucide-react";
 import { useProgress, type Role } from "../lib/store";
 import { Button, Card } from "../components/ui";
 import PebbleMascot from "../components/PebbleMascot";
 import { cn } from "../components/ui";
 
 export default function Start() {
-  const { signUp, signIn, authError, authStatus, isLoggedIn, accountRole } = useProgress();
+  const { signUp, signIn, authError, authStatus, isLoggedIn, accountRole, enterDemo } = useProgress();
   const nav = useNavigate();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [name, setName] = useState("");
@@ -148,8 +148,21 @@ export default function Start() {
             {busy ? <Loader2 size={17} strokeWidth={3} className="animate-spin" /> : null}
             {mode === "signup" ? "Create my account" : "Sign in"} <ArrowRight size={17} strokeWidth={3} />
           </Button>
+          <div className="flex items-center gap-2 text-[11px] font-black tracking-wider text-faint uppercase">
+            <span className="h-0.5 flex-1 rounded bg-line" /> or <span className="h-0.5 flex-1 rounded bg-line" />
+          </div>
+          <Button
+            variant="white"
+            className="w-full"
+            onClick={() => {
+              enterDemo();
+              nav("/dashboard");
+            }}
+          >
+            <Sparkles size={16} strokeWidth={2.75} /> Explore the demo tour
+          </Button>
           <p className="text-center text-xs font-bold text-muted">
-            Each family member signs in separately — a parent links their child's account from the parent area.{" "}
+            Just looking around? The demo tour opens a sample student — streaks, medals, parent report and all.{" "}
             <Link to="/" className="inline-flex items-center gap-1 font-black text-sky-700 underline">
               <ArrowLeft size={12} strokeWidth={3} /> Back home
             </Link>

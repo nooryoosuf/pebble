@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -32,7 +32,8 @@ const flowSteps = [
 ];
 
 export default function Landing() {
-  const { isLoggedIn, progress, todayLesson } = useProgress();
+  const { isLoggedIn, progress, todayLesson, enterDemo } = useProgress();
+  const nav = useNavigate();
 
   return (
     <div className="space-y-8">
@@ -78,6 +79,17 @@ export default function Landing() {
                 </>
               )}
             </div>
+            {!isLoggedIn && (
+              <button
+                onClick={() => {
+                  enterDemo();
+                  nav("/dashboard");
+                }}
+                className="mt-3 cursor-pointer text-sm font-black text-white/90 underline decoration-white/50 underline-offset-4 hover:text-white"
+              >
+                Just looking around? Explore the demo tour, no account needed →
+              </button>
+            )}
             <div className="mt-5 flex flex-wrap gap-2">
               {[
                 { n: "12", l: "daily missions" },
