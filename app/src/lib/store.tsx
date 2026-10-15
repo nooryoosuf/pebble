@@ -57,6 +57,31 @@ export interface ObjectiveEvidence {
   mastered: boolean;
 }
 
+export interface ChallengeResult {
+  weekKey: string; // ISO week "2026-W42"
+  dateISO: string; // when the best score was set
+  correct: number;
+  total: number;
+  percent: number;
+}
+
+/** ISO week key, e.g. "2026-W42". */
+export function weekKey(d = new Date()): string {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = (t.getUTCDay() + 6) % 7;
+  t.setUTCDate(t.getUTCDate() - day + 3);
+  const first = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
+  const week = 1 + Math.round(((t.getTime() - first.getTime()) / 86400000 - 3 + ((first.getUTCDay() + 6) % 7)) / 7);
+  return `${t.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
+/** Stable rotation index for a week key (drives the weekly question mix). */
+export function weekIndex(key: string): number {
+  const m = /^(\d{4})-W(\d{2})$/.exec(key);
+  if (!m) return 0;
+  return Number(m[1]) * 53 + Number(m[2]);
+}
+
 export interface ProgressState {
   userName: string;
   role: Role;
@@ -71,6 +96,7 @@ export interface ProgressState {
   goals: { lessonsPerWeek: number };
   flashcardsSeen: Record<string, boolean>;
   challengeDays: string[]; // yyyy-mm-dd weekly-showdown completions
+  challengeResults: ChallengeResult[]; // best score per ISO week, newest last
 }
 
 export interface LinkedStudent {
@@ -106,7 +132,8 @@ interface StoreCtx {
   progress: ProgressState;
   recordAttempt: (a: Omit<Attempt, "id" | "dateISO" | "scorePercent" | "autoCorrect" | "autoTotal" | "xpEarned" | "band"> & { dateISO?: string }) => Attempt;
   markFlashcardsSeen: (lesson: Lesson) => void;
-  completeChallenge: () => void;
+  /** Save this week's showdown result (keeps the week's best), day + badge. */
+  saveChallengeResult: (r: { correct: number; total: number; percent: number }) => void;
   /** Badge ids earned since the last celebration was dismissed (reward popup queue). */
   celebration: string[];
   advanceCelebration: () => void;
@@ -170,6 +197,7 @@ function emptyProgress(): ProgressState {
     goals: { lessonsPerWeek: 5 },
     flashcardsSeen: {},
     challengeDays: [],
+    challengeResults: [],
   };
 }
 
@@ -282,6 +310,7 @@ function buildDemoProgress(): ProgressState {
   const earnedBadges = ["ms-01", "bdg-island-economist", "bdg-streak-3", "bdg-comeback", "bdg-reviser"];
   for (const id of earnedBadges) xp += badgeXp(id);
   const studyDates = [-4, -3, -2, -1, 0].map(demoDay);
+  const wk = weekKey();
   return {
     userName: "Demo Student",
     role: "student",
@@ -306,6 +335,7 @@ function buildDemoProgress(): ProgressState {
     goals: { lessonsPerWeek: 5 },
     flashcardsSeen: {},
     challengeDays: [demoDay(-1), demoDay(0)],
+    challengeResults: [{ weekKey: wk, dateISO: `${demoDay(-1)}T10:00:00.000Z`, correct: 5, total: 6, percent: 83 }],
   };
 }
 
@@ -388,6 +418,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         earnedBadges: remote.badges,
         goals: { lessonsPerWeek: remote.goal },
         challengeDays: remote.challengeDays,
+        challengeResults: remote.challengeResults,
       };
       // recompute streak from study days (robust to clock skew)
       let run = 0;
@@ -522,6 +553,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       badges: p.earnedBadges,
       days: p.studyDates,
       challengeDays: p.challengeDays,
+      challengeResults: p.challengeResults,
       xp: p.xp,
       goal: p.goals.lessonsPerWeek,
     }).then((ok) => {
@@ -704,15 +736,26 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const completeChallenge = useCallback(() => {
-    if (!canWriteAsLearner()) throw new Error("Only the student's own account records challenge completions.");
-    const day = new Date().toISOString().slice(0, 10);
+  const saveChallengeResult = useCallback((r: { correct: number; total: number; percent: number }) => {
+    if (!canWriteAsLearner()) throw new Error("Only the student's own account records challenge results.");
+    const key = weekKey();
+    const now = new Date().toISOString();
+    const day = now.slice(0, 10);
     setProgress((p) => {
-      if (p.challengeDays.includes(day)) return p;
+      const prev = p.challengeResults.find((x) => x.weekKey === key);
+      const best: ChallengeResult =
+        !prev || r.percent > prev.percent
+          ? { weekKey: key, dateISO: now, correct: r.correct, total: r.total, percent: r.percent }
+          : prev;
+      const challengeResults = prev
+        ? p.challengeResults.map((x) => (x.weekKey === key ? best : x))
+        : [...p.challengeResults, best];
+      const challengeDays = p.challengeDays.includes(day) ? p.challengeDays : [...p.challengeDays, day];
       const already = p.earnedBadges.includes("bdg-reviser");
       return {
         ...p,
-        challengeDays: [...p.challengeDays, day],
+        challengeResults,
+        challengeDays,
         earnedBadges: already ? p.earnedBadges : [...p.earnedBadges, "bdg-reviser"],
         xp: already ? p.xp : p.xp + consistencyBadges[3].xpReward,
       };
@@ -867,9 +910,14 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       return lesson ? [{ lessonId: lesson.lessonId, reason: `Needs work (${e.bestScore}% best so far)` }] : [];
     });
 
-    // weekly revision challenge: sample 1 MCQ from up to 6 lessons with MCQs
+    // weekly showdown: rotating mix of 6 MCQs, deterministic per ISO week,
+    // so each week brings a fresh challenge while past results stay viewable
     const pool = lessons.filter((l) => l.mcqs.length > 0);
-    const weeklyRevisionSet = pool.slice(0, 6).map((l) => ({ lessonId: l.lessonId, mcqId: l.mcqs[0].id }));
+    const wi = weekIndex(weekKey());
+    const weeklyRevisionSet = Array.from({ length: Math.min(6, pool.length) }, (_, i) => {
+      const l = pool[(wi + i) % pool.length];
+      return { lessonId: l.lessonId, mcqId: l.mcqs[(wi + i) % l.mcqs.length].id };
+    });
 
     return {
       authStatus,
@@ -896,7 +944,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       progress,
       recordAttempt,
       markFlashcardsSeen,
-      completeChallenge,
+      saveChallengeResult,
       celebration,
       advanceCelebration,
       dismissCelebration,
@@ -905,7 +953,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       recommendedRevision,
       weeklyRevisionSet,
     };
-  }, [authStatus, authError, userId, accountRole, accountName, students, activeStudentId, isAdmin, syncMode, progress, signUp, signIn, signOut, addChild, switchStudent, retrySync, demoMode, enterDemo, exitDemo, resetDemoTour, recordAttempt, markFlashcardsSeen, completeChallenge, celebration, advanceCelebration, dismissCelebration, setGoal]);
+  }, [authStatus, authError, userId, accountRole, accountName, students, activeStudentId, isAdmin, syncMode, progress, signUp, signIn, signOut, addChild, switchStudent, retrySync, demoMode, enterDemo, exitDemo, resetDemoTour, recordAttempt, markFlashcardsSeen, saveChallengeResult, celebration, advanceCelebration, dismissCelebration, setGoal]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

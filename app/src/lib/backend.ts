@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from "./supabase";
-import type { Attempt, ObjectiveEvidence } from "./store";
+import type { Attempt, ChallengeResult, ObjectiveEvidence } from "./store";
 
 /* ─── Supabase persistence layer ─────────────────────────────────────────────
    Server is the source of truth; localStorage holds a per-student offline
@@ -14,6 +14,7 @@ export interface RemoteLearnerState {
   badges: string[];
   days: string[];
   challengeDays: string[];
+  challengeResults: ChallengeResult[];
   xp: number;
   goal: number;
   displayName: string;
@@ -81,15 +82,16 @@ export function requireBackend() {
 
 export async function fetchLearnerState(studentId: string): Promise<RemoteLearnerState> {
   const db = requireBackend();
-  const [att, mast, badges, days, chDays, prof] = await Promise.all([
+  const [att, mast, badges, days, chDays, chRes, prof] = await Promise.all([
     db.from("attempts").select("*").eq("student_id", studentId).order("created_at", { ascending: true }).limit(1000),
     db.from("objective_mastery").select("objective_id,attempts,best_score,mastered").eq("student_id", studentId),
     db.from("earned_badges").select("badge_id").eq("student_id", studentId),
     db.from("study_days").select("day").eq("student_id", studentId),
     db.from("challenge_days").select("day").eq("student_id", studentId),
+    db.from("challenge_results").select("week_key,correct,total,score_percent,created_at").eq("student_id", studentId).order("created_at", { ascending: true }),
     db.from("profiles").select("display_name,lessons_per_week,xp").eq("id", studentId).single(),
   ]);
-  for (const r of [att, mast, badges, days, chDays, prof]) {
+  for (const r of [att, mast, badges, days, chDays, chRes, prof]) {
     if (r.error) throw r.error;
   }
   const mastery: Record<string, ObjectiveEvidence> = {};
@@ -102,6 +104,9 @@ export async function fetchLearnerState(studentId: string): Promise<RemoteLearne
     badges: (badges.data ?? []).map((b) => b.badge_id as string),
     days: (days.data ?? []).map((d) => d.day as string),
     challengeDays: (chDays.data ?? []).map((d) => d.day as string),
+    challengeResults: ((chRes.data ?? []) as { week_key: string; correct: number; total: number; score_percent: number; created_at: string }[]).map(
+      (r) => ({ weekKey: r.week_key, dateISO: r.created_at, correct: r.correct, total: r.total, percent: r.score_percent }),
+    ),
     xp: prof.data?.xp ?? 0,
     goal: prof.data?.lessons_per_week ?? 5,
     displayName: prof.data?.display_name ?? "Learner",
@@ -145,6 +150,7 @@ export async function pushLearnerSnapshot(
     badges: string[];
     days: string[];
     challengeDays: string[];
+    challengeResults: ChallengeResult[];
     xp: number;
     goal: number;
   },
@@ -198,6 +204,19 @@ export async function pushLearnerSnapshot(
           onConflict: "student_id,day",
           ignoreDuplicates: true,
         });
+      if (error) throw error;
+    }
+    if (s.challengeResults.length > 0) {
+      const { error } = await db.from("challenge_results").upsert(
+        s.challengeResults.map((r) => ({
+          student_id: studentId,
+          week_key: r.weekKey,
+          correct: r.correct,
+          total: r.total,
+          score_percent: r.percent,
+        })),
+        { onConflict: "student_id,week_key" },
+      );
       if (error) throw error;
     }
     const { error: profErr } = await db
