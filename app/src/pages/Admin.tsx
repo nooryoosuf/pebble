@@ -11,6 +11,9 @@ import {
   Crown,
   RefreshCw,
   Loader2,
+  Search,
+  KeyRound,
+  Trash2,
 } from "lucide-react";
 import { Button, Card, Badge } from "../components/ui";
 import { EmptyArt } from "../components/art";
@@ -35,6 +38,11 @@ interface AttemptRow {
   band: string; created_at: string; student_id: string;
 }
 interface ProfileRow { id: string; display_name: string; role: string; xp: number }
+interface LoginRow {
+  id: string; email: string; createdAt: string; lastSignIn: string | null;
+  displayName: string; role: string; isAdmin: boolean;
+  children: { id: string; displayName: string }[];
+}
 
 const lessonTitle = (id: string) =>
   lessons.find((l) => l.lessonId === id)?.title ?? (id === "lesson-master" ? "Final Showdown" : id);
@@ -48,6 +56,14 @@ export default function Admin() {
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [links, setLinks] = useState<{ parent_id: string; student_id: string }[]>([]);
   const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
+  const [logins, setLogins] = useState<LoginRow[]>([]);
+  const [loginsError, setLoginsError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [resetId, setResetId] = useState<string | null>(null);
+  const [newPw, setNewPw] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [loginMsg, setLoginMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [loginBusy, setLoginBusy] = useState(false);
 
   const load = useCallback(async () => {
     if (!supabase) return;
@@ -79,12 +95,71 @@ export default function Admin() {
     }
   }, []);
 
+  const loadLogins = useCallback(async () => {
+    if (!supabase) return;
+    setLoginsError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-users", { body: { action: "list" } });
+      if (error) throw error;
+      if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
+      setLogins(((data as { users: LoginRow[] }).users ?? []));
+    } catch (e) {
+      setLoginsError(e instanceof Error ? e.message : "Could not load logins");
+    }
+  }, []);
+
+  const doResetPassword = useCallback(
+    async (id: string) => {
+      if (!supabase || newPw.length < 8) return;
+      setLoginBusy(true);
+      setLoginMsg(null);
+      try {
+        const { data, error } = await supabase.functions.invoke("admin-users", {
+          body: { action: "reset-password", userId: id, password: newPw },
+        });
+        if (error) throw error;
+        if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
+        setLoginMsg({ ok: true, text: "Password updated — share the new one with them directly." });
+        setResetId(null);
+        setNewPw("");
+      } catch (e) {
+        setLoginMsg({ ok: false, text: e instanceof Error ? e.message : "Reset failed" });
+      } finally {
+        setLoginBusy(false);
+      }
+    },
+    [newPw],
+  );
+
+  const doDeleteUser = useCallback(async (id: string) => {
+    if (!supabase) return;
+    setLoginBusy(true);
+    setLoginMsg(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-users", {
+        body: { action: "delete-user", userId: id },
+      });
+      if (error) throw error;
+      if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
+      setLogins((ls) => ls.filter((l) => l.id !== id));
+      setConfirmDeleteId(null);
+      setLoginMsg({ ok: true, text: "Account and all its learning data deleted." });
+      await load();
+    } catch (e) {
+      setLoginMsg({ ok: false, text: e instanceof Error ? e.message : "Delete failed" });
+    } finally {
+      setLoginBusy(false);
+    }
+  }, [load]);
+
   useEffect(() => {
-    if (isLoggedIn && isAdmin) void load();
-    else {
+    if (isLoggedIn && isAdmin) {
+      void load();
+      void loadLogins();
+    } else {
       setLoading(false);
     }
-  }, [isLoggedIn, isAdmin, load]);
+  }, [isLoggedIn, isAdmin, load, loadLogins]);
 
   if (!isLoggedIn) {
     return (
@@ -127,6 +202,20 @@ export default function Admin() {
     });
   }
   const maxDay = Math.max(1, ...days.map((d) => d.count));
+  const dayAvgs = days.map((d) => {
+    const rel = attempts.filter((a) => a.created_at.slice(0, 10) === d.key);
+    return { ...d, avg: rel.length ? Math.round(rel.reduce((t, a) => t + a.score_percent, 0) / rel.length) : null };
+  });
+  const bandMix = [
+    { label: "Cleared", n: attempts.filter((a) => a.band === "progress").length, cls: "bg-mint-400" },
+    { label: "Practise", n: attempts.filter((a) => a.band === "practice").length, cls: "bg-tang-400" },
+    { label: "Revision", n: attempts.filter((a) => a.band === "revision").length, cls: "bg-coral-400" },
+  ];
+  const bandTotal = Math.max(1, bandMix.reduce((t, b) => t + b.n, 0));
+  const filteredLogins = logins.filter((l) => {
+    const q = query.trim().toLowerCase();
+    return q.length === 0 || l.displayName.toLowerCase().includes(q) || l.email.toLowerCase().includes(q);
+  });
 
   const kpis = overview
     ? [
@@ -185,17 +274,41 @@ export default function Admin() {
             ))}
           </div>
 
-          <Card>
-            <p className="text-[11px] font-extrabold tracking-wider text-slate-muted uppercase">Attempts · last 14 days</p>
-            <div className="mt-3 flex h-24 items-end gap-1">
-              {days.map((d) => (
-                <div key={d.key} className="flex flex-1 flex-col items-center gap-1" title={`${d.label}: ${d.count}`}>
-                  <div className="w-full rounded-t-md bg-sky-400" style={{ height: `${Math.max(6, (d.count / maxDay) * 72)}px` }} />
-                  <span className="hidden text-[9px] font-bold text-slate-muted sm:block">{d.label.split(" ")[0]}</span>
-                </div>
-              ))}
-            </div>
-          </Card>
+          <div className="grid gap-3 lg:grid-cols-2">
+            <Card>
+              <p className="text-[11px] font-extrabold tracking-wider text-slate-muted uppercase">Attempts · last 14 days</p>
+              <div className="mt-3 flex h-24 items-end gap-1">
+                {days.map((d) => (
+                  <div key={d.key} className="flex flex-1 flex-col items-center gap-1" title={`${d.label}: ${d.count}`}>
+                    <div className="w-full rounded-t-md bg-sky-400" style={{ height: `${Math.max(6, (d.count / maxDay) * 72)}px` }} />
+                    <span className="hidden text-[9px] font-bold text-slate-muted sm:block">{d.label.split(" ")[0]}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+            <Card>
+              <p className="text-[11px] font-extrabold tracking-wider text-slate-muted uppercase">Average score · last 14 days</p>
+              <div className="mt-3 flex h-24 items-end gap-1">
+                {dayAvgs.map((d) => (
+                  <div key={d.key} className="flex flex-1 flex-col items-center gap-1" title={`${d.label}: ${d.avg === null ? "no attempts" : d.avg + "%"}`}>
+                    <div
+                      className={cn("w-full rounded-t-md", d.avg === null ? "bg-line" : d.avg >= 80 ? "bg-mint-400" : d.avg >= 50 ? "bg-tang-400" : "bg-coral-400")}
+                      style={{ height: `${d.avg === null ? 6 : Math.max(8, (d.avg / 100) * 72)}px` }}
+                    />
+                    <span className="hidden text-[9px] font-bold text-slate-muted tabular-nums sm:block">{d.avg === null ? "—" : `${d.avg}`}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 flex gap-3 border-t border-line pt-2">
+                {bandMix.map((b) => (
+                  <span key={b.label} className="flex items-center gap-1.5 text-[11px] font-black text-slate-muted">
+                    <span className={cn("h-2.5 w-2.5 rounded-full", b.cls)} />
+                    {b.label} {Math.round((b.n / bandTotal) * 100)}%
+                  </span>
+                ))}
+              </div>
+            </Card>
+          </div>
 
           <Card>
             <p className="text-[11px] font-extrabold tracking-wider text-slate-muted uppercase">Families · {students.length} students</p>
@@ -240,6 +353,121 @@ export default function Admin() {
             )}
             {studentIds.size === 0 && profiles.length > 0 && (
               <p className="mt-2 text-xs font-semibold text-slate-muted">Parent accounts with no linked children don't appear here.</p>
+            )}
+          </Card>
+
+          <Card>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-[11px] font-extrabold tracking-wider text-slate-muted uppercase">
+                Logins & access · {filteredLogins.length} account{filteredLogins.length === 1 ? "" : "s"}
+              </p>
+              <label className="flex items-center gap-1.5 rounded-xl border-2 border-line px-2.5 py-1.5 text-xs font-bold text-slate-muted focus-within:border-sky-400">
+                <Search size={13} strokeWidth={2.75} />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search name or email…"
+                  className="w-40 bg-transparent outline-none placeholder:text-faint"
+                />
+              </label>
+            </div>
+            {loginsError ? (
+              <p className="mt-2 rounded-xl border-2 border-coral-400/50 bg-coral-100/40 px-3 py-2 text-xs font-bold text-coral-700" role="alert">
+                {loginsError}
+              </p>
+            ) : filteredLogins.length === 0 ? (
+              <p className="mt-2 text-sm font-semibold text-slate-muted">
+                {logins.length === 0 ? "No accounts yet — they appear here the moment someone signs up." : "No accounts match that search."}
+              </p>
+            ) : (
+              <div className="mt-2 overflow-x-auto">
+                <table className="w-full min-w-[680px] text-left text-[13px]">
+                  <thead>
+                    <tr className="text-slate-muted">
+                      <th className="py-1.5 pr-3 font-extrabold">Account</th>
+                      <th className="py-1.5 pr-3 font-extrabold">Email</th>
+                      <th className="py-1.5 pr-3 font-extrabold">Children</th>
+                      <th className="py-1.5 pr-3 text-right font-extrabold">Last sign-in</th>
+                      <th className="py-1.5 text-right font-extrabold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredLogins.map((l, i) => (
+                      <tr key={l.id} className={i % 2 === 0 ? "border-t border-line bg-stage/60" : "border-t border-line"}>
+                        <td className="py-2 pr-3 font-bold">
+                          {l.displayName}
+                          <span className={cn(
+                            "ml-1.5 rounded-full px-2 py-0.5 text-[10px] font-black uppercase",
+                            l.isAdmin ? "bg-ink text-white" : l.role === "parent" ? "bg-sky-100 text-sky-700" : "bg-mint-100 text-mint-800",
+                          )}>
+                            {l.isAdmin ? "owner" : l.role}
+                          </span>
+                        </td>
+                        <td className="max-w-44 truncate py-2 pr-3 font-semibold text-slate-muted" title={l.email}>{l.email}</td>
+                        <td className="py-2 pr-3 font-semibold text-slate-muted">
+                          {l.children.length === 0 ? "—" : l.children.map((c) => c.displayName).join(", ")}
+                        </td>
+                        <td className="py-2 pr-3 text-right font-semibold tabular-nums">
+                          {l.lastSignIn ? l.lastSignIn.slice(0, 10) : "never"}
+                        </td>
+                        <td className="py-2 text-right">
+                          <span className="inline-flex gap-1">
+                            <button
+                              onClick={() => { setResetId(resetId === l.id ? null : l.id); setNewPw(""); setConfirmDeleteId(null); }}
+                              className="cursor-pointer rounded-lg border border-line px-2 py-1 text-[11px] font-black text-slate-muted hover:border-sky-400 hover:text-sky-700"
+                              title="Set a new password for this account"
+                            >
+                              <KeyRound size={12} strokeWidth={3} className="inline" /> Password
+                            </button>
+                            <button
+                              onClick={() => { setConfirmDeleteId(confirmDeleteId === l.id ? null : l.id); setResetId(null); }}
+                              className="cursor-pointer rounded-lg border border-line px-2 py-1 text-[11px] font-black text-slate-muted hover:border-coral-400 hover:text-coral-700"
+                              title="Delete this account and all its data"
+                            >
+                              <Trash2 size={12} strokeWidth={3} className="inline" />
+                            </button>
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {resetId && (
+              <div className="mt-2 flex flex-wrap items-center gap-2 rounded-2xl border-2 border-sky-400/50 bg-sky-100/50 p-3">
+                <span className="text-xs font-black text-sky-700">
+                  New password for {filteredLogins.find((l) => l.id === resetId)?.displayName}:
+                </span>
+                <input
+                  type="password"
+                  value={newPw}
+                  onChange={(e) => setNewPw(e.target.value)}
+                  placeholder="8+ characters"
+                  autoComplete="new-password"
+                  className="w-44 rounded-xl border-2 border-line bg-white px-2.5 py-1.5 text-sm font-bold outline-none focus:border-sky-400"
+                />
+                <Button variant="blue" className="px-3 py-1.5 text-xs" disabled={newPw.length < 8 || loginBusy} onClick={() => void doResetPassword(resetId)}>
+                  {loginBusy ? "Saving…" : "Set password"}
+                </Button>
+                <button onClick={() => setResetId(null)} className="cursor-pointer text-xs font-black text-slate-muted underline">Cancel</button>
+              </div>
+            )}
+            {confirmDeleteId && (
+              <div className="mt-2 flex flex-wrap items-center gap-2 rounded-2xl border-2 border-coral-400/50 bg-coral-100/40 p-3">
+                <span className="text-xs font-black text-coral-700">
+                  Delete {filteredLogins.find((l) => l.id === confirmDeleteId)?.displayName} and ALL their learning data? This can't be undone.
+                </span>
+                <Button variant="coral" className="px-3 py-1.5 text-xs" disabled={loginBusy} onClick={() => void doDeleteUser(confirmDeleteId)}>
+                  {loginBusy ? "Deleting…" : "Yes, delete everything"}
+                </Button>
+                <button onClick={() => setConfirmDeleteId(null)} className="cursor-pointer text-xs font-black text-slate-muted underline">Keep</button>
+              </div>
+            )}
+            {loginMsg && (
+              <p className={cn("mt-2 rounded-xl border-2 px-3 py-2 text-xs font-bold", loginMsg.ok ? "border-mint-400/50 bg-mint-50 text-mint-800" : "border-coral-400/50 bg-coral-100/40 text-coral-700")} role="alert">
+                {loginMsg.text}
+              </p>
             )}
           </Card>
 
