@@ -5,7 +5,7 @@ A playful, installable daily-learning platform built from the approved
 their own login; students learn, parents follow — every family sees only their
 own data.
 
-**Live:** https://pebble.nooryoosuf.com (Cloudflare Pages + custom domain)
+**Live:** https://pebble.nooryoosuf.com (Cloudflare Pages + custom domain, Supabase backend connected)
 **Also:** https://nooryoosuf.github.io/pebble (GitHub Pages mirror)
 **Repo:** https://github.com/nooryoosuf/pebble
 
