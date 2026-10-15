@@ -15,17 +15,27 @@ own data.
 |---|---|
 | `app/` | The React + TypeScript + Vite application (PWA) |
 | `app/src/data/curriculum.ts` | 12 topic-lessons + Master capstone, stable IDs, textbook page refs |
-| `app/supabase/migrations/` | `001` core schema + RLS + server grading · `002` capstone keys · `003` multi-family auth · `004` challenge days |
-| `app/supabase/functions/create-student/` | Edge Function: parents create linked child logins |
+| `app/supabase/migrations/` | `001` core schema + RLS + server grading · `002` capstone keys · `003` multi-family auth · `004` challenge days · `005` admin console · `006` challenge results · `007` family profiles · `008` orphan purge |
+| `app/supabase/functions/create-student/` | Edge Function: (legacy) parents create linked child logins |
+| `app/supabase/functions/admin-users/` | Edge Function: owner-only login list, password reset, delete |
 | `chapter_*_content_file.md`, `curriculum_map_data.md`, … | Approved source content (source of truth) |
 | `704639358-Exploring-Business-Studies-SB7.pdf` | Printed textbook (verification) |
 
 ## How accounts work (multi-family)
 
-- **Students** sign up / sign in with email + password and get missions, streaks, medals. Progress saves to their account and syncs across devices (offline work is cached and uploaded later).
-- **Parents** sign up with their own email, then **create their child's login** from the parent area (name + email + password). The child is linked automatically.
-- **Isolation:** Supabase Row Level Security guarantees students touch only their own rows and parents read only their linked children. Roles are assigned at signup and locked — a student can never promote themselves. Answer keys and grading live server-side (`grade_attempt` trigger); the app never trusts client scores.
-- Another family signing up gets a completely separate space — same app, partitioned data.
+- **One parent login per family.** Parents sign up with email + password, then
+  add a **profile per child — just a name, no email or password for kids**.
+  Children learn on the family device(s) under the parent's sign-in by picking
+  their profile (older `create-student` email logins still work if they exist).
+- **Students** with their own login (legacy) get missions, streaks, medals.
+  Progress saves to the learner's record and syncs across devices (offline work
+  is cached and uploaded later). Deleting a profile wipes its learning data
+  (app + database trigger safety net).
+- **Isolation:** Supabase Row Level Security guarantees each family sees only
+  its own rows — verified live (second family reads nothing, cross-family
+  writes rejected). Roles are assigned at signup and locked — a student can
+  never promote themselves. Answer keys and grading live server-side
+  (`grade_attempt` trigger); the app never trusts client scores.
 
 ## Backend setup (once, ~15 min)
 
@@ -71,7 +81,7 @@ Without keys the app boots to a “Backend not connected” state instead of fak
 
 ## Key flows to test
 
-1. Parent sign-up → parent area → create child login → sign child in (separate browser/incognito) → complete a lesson.
+1. Parent sign-up → parent area → add a child **profile** (name only) → pick the profile → complete a lesson.
 2. Parent report shows the child's real attempts, written report, and working goal setter.
 3. A second family signing up sees none of the first family's data.
 4. `npm.cmd run build` passes; `app/dist` contains `manifest.webmanifest`, `sw.js`, `_redirects`.

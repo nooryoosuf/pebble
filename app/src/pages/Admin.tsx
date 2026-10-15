@@ -28,11 +28,13 @@ import { cn } from "../components/ui";
 ----------------------------------------------------------------------------- */
 
 interface Overview {
-  parents: number; students: number; attempts: number; attempts_7d: number;
+  parents: number; students: number; child_profiles: number;
+  attempts: number; attempts_7d: number;
   active_today: number; active_7d: number; avg_score: number | null;
   xp_total: number; badges: number; master_clears: number;
   showdowns: number; objectives_mastered: number;
 }
+interface ChildProfileRow { id: string; display_name: string; parent_id: string }
 interface AttemptRow {
   id: string; lesson_id: string; score_percent: number;
   band: string; created_at: string; student_id: string;
@@ -55,6 +57,7 @@ export default function Admin() {
   const [attempts, setAttempts] = useState<AttemptRow[]>([]);
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [links, setLinks] = useState<{ parent_id: string; student_id: string }[]>([]);
+  const [kidProfiles, setKidProfiles] = useState<ChildProfileRow[]>([]);
   const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
   const [logins, setLogins] = useState<LoginRow[]>([]);
   const [loginsError, setLoginsError] = useState<string | null>(null);
@@ -73,16 +76,18 @@ export default function Admin() {
       const ov = await supabase.rpc("admin_overview");
       if (ov.error) throw ov.error;
       setOverview(ov.data as Overview);
-      const [att, prof, lnk, bdg] = await Promise.all([
+      const [att, prof, lnk, bdg, kids] = await Promise.all([
         supabase.from("attempts").select("id,lesson_id,score_percent,band,created_at,student_id").order("created_at", { ascending: false }).limit(500),
         supabase.from("profiles").select("id,display_name,role,xp"),
         supabase.from("parent_links").select("parent_id,student_id"),
         supabase.from("earned_badges").select("student_id,badge_id"),
+        supabase.from("child_profiles").select("id,display_name,parent_id"),
       ]);
-      for (const r of [att, prof, lnk, bdg]) if (r.error) throw r.error;
+      for (const r of [att, prof, lnk, bdg, kids]) if (r.error) throw r.error;
       setAttempts((att.data ?? []) as AttemptRow[]);
       setProfiles((prof.data ?? []) as ProfileRow[]);
       setLinks((lnk.data ?? []) as { parent_id: string; student_id: string }[]);
+      setKidProfiles((kids.data ?? []) as ChildProfileRow[]);
       const counts: Record<string, number> = {};
       for (const b of (bdg.data ?? []) as { student_id: string }[]) {
         counts[b.student_id] = (counts[b.student_id] ?? 0) + 1;
@@ -188,7 +193,14 @@ export default function Admin() {
 
   const names = new Map(profiles.map((p) => [p.id, p.display_name]));
   const studentIds = new Set(links.map((l) => l.student_id));
-  const students = profiles.filter((p) => p.role === "student");
+  // every learner: login accounts + password-free child profiles
+  const allLearners: { id: string; displayName: string; parentId: string | null; via: string }[] = [
+    ...profiles.filter((p) => p.role === "student").map((s) => {
+      const parentId = links.find((l) => l.student_id === s.id)?.parent_id ?? null;
+      return { id: s.id, displayName: s.display_name, parentId, via: "login" };
+    }),
+    ...kidProfiles.map((k) => ({ id: k.id, displayName: k.display_name, parentId: k.parent_id, via: "profile" })),
+  ];
 
   // 14-day activity
   const days: { key: string; label: string; count: number }[] = [];
@@ -219,7 +231,7 @@ export default function Admin() {
 
   const kpis = overview
     ? [
-        { icon: Users, label: "Families", value: `${overview.parents}`, sub: `${overview.students} students` },
+        { icon: Users, label: "Families", value: `${overview.parents}`, sub: `${overview.students + overview.child_profiles} learners` },
         { icon: Activity, label: "Attempts", value: `${overview.attempts}`, sub: `${overview.attempts_7d} in last 7 days` },
         { icon: Flame, label: "Active today", value: `${overview.active_today}`, sub: `${overview.active_7d} active this week` },
         { icon: Star, label: "Avg score", value: overview.avg_score === null ? "—" : `${overview.avg_score}%`, sub: "all attempts" },
@@ -311,15 +323,15 @@ export default function Admin() {
           </div>
 
           <Card>
-            <p className="text-[11px] font-extrabold tracking-wider text-slate-muted uppercase">Families · {students.length} students</p>
-            {students.length === 0 ? (
-              <p className="mt-1.5 text-sm font-semibold text-slate-muted">No student accounts yet.</p>
+            <p className="text-[11px] font-extrabold tracking-wider text-slate-muted uppercase">Families · {allLearners.length} learners</p>
+            {allLearners.length === 0 ? (
+              <p className="mt-1.5 text-sm font-semibold text-slate-muted">No learners yet — they appear here the moment a family starts.</p>
             ) : (
               <div className="mt-2 overflow-x-auto">
                 <table className="w-full min-w-[620px] text-left text-[13px]">
                   <thead>
                     <tr className="text-slate-muted">
-                      <th className="py-1.5 pr-3 font-extrabold">Student</th>
+                      <th className="py-1.5 pr-3 font-extrabold">Learner</th>
                       <th className="py-1.5 pr-3 font-extrabold">Parent</th>
                       <th className="py-1.5 pr-3 text-right font-extrabold">Attempts</th>
                       <th className="py-1.5 pr-3 text-right font-extrabold">Avg</th>
@@ -328,18 +340,19 @@ export default function Admin() {
                     </tr>
                   </thead>
                   <tbody className="tabular-nums">
-                    {students.map((s, i) => {
+                    {allLearners.map((s, i) => {
                       const rel = attempts.filter((a) => a.student_id === s.id);
                       const avg = rel.length ? Math.round(rel.reduce((t, a) => t + a.score_percent, 0) / rel.length) : null;
                       const last = rel.length ? rel[0].created_at.slice(0, 10) : "—";
-                      const parentId = links.find((l) => l.student_id === s.id)?.parent_id;
                       return (
                         <tr key={s.id} className={cn(i % 2 === 0 ? "border-t border-line bg-stage/60" : "border-t border-line")}>
                           <td className="py-2 pr-3 font-bold">
-                            {s.display_name}
-                            {!parentId && <Badge tone="coral" className="ml-1.5">unlinked</Badge>}
+                            {s.displayName}
+                            {s.via === "profile"
+                              ? <Badge tone="sky" className="ml-1.5">profile</Badge>
+                              : !s.parentId && <Badge tone="coral" className="ml-1.5">unlinked</Badge>}
                           </td>
-                          <td className="py-2 pr-3 font-semibold text-slate-muted">{parentId ? (names.get(parentId) ?? "—") : "—"}</td>
+                          <td className="py-2 pr-3 font-semibold text-slate-muted">{s.parentId ? (names.get(s.parentId) ?? "—") : "—"}</td>
                           <td className="py-2 pr-3 text-right font-black">{rel.length}</td>
                           <td className="py-2 pr-3 text-right font-black">{avg === null ? "—" : `${avg}%`}</td>
                           <td className="py-2 pr-3 text-right font-black">{badgeCounts[s.id] ?? 0}</td>
@@ -351,8 +364,8 @@ export default function Admin() {
                 </table>
               </div>
             )}
-            {studentIds.size === 0 && profiles.length > 0 && (
-              <p className="mt-2 text-xs font-semibold text-slate-muted">Parent accounts with no linked children don't appear here.</p>
+            {studentIds.size === 0 && kidProfiles.length === 0 && profiles.length > 0 && (
+              <p className="mt-2 text-xs font-semibold text-slate-muted">Parent accounts with no children don't appear here.</p>
             )}
           </Card>
 

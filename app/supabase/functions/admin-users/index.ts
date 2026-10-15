@@ -58,10 +58,11 @@ serve(async (req) => {
       page += 1;
       if (page > 20) break; // sane cap (~2000 accounts)
     }
-    const [{ data: profiles }, { data: links }, { data: adminRows }] = await Promise.all([
+    const [{ data: profiles }, { data: links }, { data: adminRows }, { data: kids }] = await Promise.all([
       admin.from("profiles").select("id,display_name,role"),
       admin.from("parent_links").select("parent_id,student_id"),
       admin.from("admins").select("user_id"),
+      admin.from("child_profiles").select("id,display_name,parent_id"),
     ]);
     const adminIds = new Set(((adminRows ?? []) as { user_id: string }[]).map((a) => a.user_id));
     const nameOf = new Map(((profiles ?? []) as { id: string; display_name: string; role: string }[]).map((p) => [p.id, p]));
@@ -71,13 +72,22 @@ serve(async (req) => {
       arr.push(l.student_id);
       kidsOf.set(l.parent_id, arr);
     }
+    const profilesKids = new Map<string, { id: string; displayName: string }[]>();
+    for (const k of ((kids ?? []) as { id: string; display_name: string; parent_id: string }[])) {
+      const arr = profilesKids.get(k.parent_id) ?? [];
+      arr.push({ id: k.id, displayName: k.display_name });
+      profilesKids.set(k.parent_id, arr);
+    }
     return ok({
       users: users.map((u) => {
         const p = nameOf.get(u.id) as { display_name: string; role: string } | undefined;
-        const kids = (kidsOf.get(u.id) ?? []).map((kid) => {
+        const linked = (kidsOf.get(u.id) ?? []).map((kid) => {
           const kp = nameOf.get(kid) as { display_name: string } | undefined;
           return { id: kid, displayName: kp?.display_name ?? "—" };
         });
+        const viaProfiles = profilesKids.get(u.id) ?? [];
+        const seen = new Set(linked.map((k) => k.id));
+        const kids = [...linked, ...viaProfiles.filter((k) => !seen.has(k.id))];
         return {
           id: u.id,
           email: u.email ?? "—",
@@ -103,6 +113,13 @@ serve(async (req) => {
   if (body.action === "delete-user") {
     if (!body.userId) return fail("Missing userId");
     if (body.userId === user.id) return fail("You cannot delete your own owner account here");
+    // purge learner rows for their child profiles first (learner ids carry no FK)
+    const { data: kids } = await admin.from("child_profiles").select("id").eq("parent_id", body.userId);
+    const learnerIds = [body.userId, ...((kids ?? []) as { id: string }[]).map((k) => k.id)];
+    for (const table of ["challenge_results", "challenge_days", "earned_badges", "objective_mastery", "study_days", "attempts"]) {
+      const { error } = await admin.from(table).delete().in("student_id", learnerIds);
+      if (error) return fail(error.message, 500);
+    }
     const { error } = await admin.auth.admin.deleteUser(body.userId);
     if (error) return fail(error.message, 500);
     return ok({ ok: true });

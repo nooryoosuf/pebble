@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link, Navigate } from "react-router-dom";
 import { GraduationCap, Users, ArrowRight, ArrowLeft, TriangleAlert, Loader2, Sparkles } from "lucide-react";
-import { useProgress, type Role } from "../lib/store";
+import { useProgress } from "../lib/store";
 import { Button, Card } from "../components/ui";
 import PebbleMascot from "../components/PebbleMascot";
 import { cn } from "../components/ui";
@@ -13,7 +13,6 @@ export default function Start() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<Role>("student");
   const [busy, setBusy] = useState(false);
 
   if (isLoggedIn) {
@@ -23,11 +22,13 @@ export default function Start() {
   const submit = async () => {
     setBusy(true);
     try {
+      // New accounts are always parents — children join as profiles inside,
+      // no email or password needed for them.
       const ok =
         mode === "signup"
-          ? await signUp({ displayName: name, email, password, role })
+          ? await signUp({ displayName: name, email, password, role: "parent" })
           : await signIn({ email, password });
-      if (ok) nav(role === "parent" && mode === "signup" ? "/parent" : accountRole === "parent" ? "/parent" : "/dashboard");
+      if (ok) nav("/parent");
     } finally {
       setBusy(false);
     }
@@ -111,30 +112,14 @@ export default function Start() {
           </div>
 
           {mode === "signup" && (
-            <div className="grid grid-cols-2 gap-2.5" role="radiogroup" aria-label="Choose role">
-              {(
-                [
-                  { r: "student" as Role, icon: GraduationCap, tint: "bg-mint-100 text-mint-700", title: "Student", body: "Missions, streaks & medals" },
-                  { r: "parent" as Role, icon: Users, tint: "bg-sky-100 text-sky-700", title: "Parent", body: "Reports, goals & child logins" },
-                ]
-              ).map((o) => (
-                <button
-                  key={o.r}
-                  role="radio"
-                  aria-checked={role === o.r}
-                  onClick={() => setRole(o.r)}
-                  className={cn(
-                    "duo-press cursor-pointer rounded-2xl border-2 p-3 text-left",
-                    role === o.r ? "border-mint-400 bg-mint-50" : "border-line bg-white hover:bg-stage",
-                  )}
-                >
-                  <span className={cn("grid h-10 w-10 place-items-center rounded-xl", o.tint)}>
-                    <o.icon size={20} strokeWidth={2.5} />
-                  </span>
-                  <span className="mt-1.5 block text-[15px] font-black text-ink">{o.title}</span>
-                  <span className="block text-xs font-bold text-muted">{o.body}</span>
-                </button>
-              ))}
+            <div className="flex items-start gap-2.5 rounded-2xl border-2 border-mint-400/40 bg-mint-50 p-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-mint-100 text-mint-700">
+                <Users size={20} strokeWidth={2.5} />
+              </span>
+              <p className="text-[13px] font-bold text-ink">
+                You're creating a <strong>parent account</strong>. Inside, you'll add a profile
+                for each child — no email or password needed for them.
+              </p>
             </div>
           )}
 

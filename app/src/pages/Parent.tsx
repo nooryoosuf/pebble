@@ -20,31 +20,36 @@ import { lessons, chapters, chapterById, masterLesson } from "../data/curriculum
 import { useProgress } from "../lib/store";
 import { cn } from "../components/ui";
 
-/** Parent-only: switch between linked children + create a child's login. */
+/** Parent-only: switch between children + add password-free profiles. */
 function ChildManager() {
-  const { students, activeStudentId, switchStudent, addChild } = useProgress();
+  const { students, activeStudentId, switchStudent, addChildProfile, deleteChildProfile } = useProgress();
   const [showForm, setShowForm] = useState(students.length === 0);
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
-  const valid = name.trim().length >= 2 && email.includes("@") && password.length >= 8;
+  const valid = name.trim().length >= 2;
 
   const submit = async () => {
     setBusy(true);
     setMsg(null);
-    const err = await addChild({ displayName: name.trim(), email: email.trim(), password });
+    const err = await addChildProfile(name);
     setBusy(false);
     if (err) {
       setMsg({ ok: false, text: err });
     } else {
-      setMsg({ ok: true, text: `Login created for ${name.trim()} (${email.trim()}). Sign them in on their device — progress will appear here.` });
+      setMsg({ ok: true, text: `${name.trim()} joined the family — pick their profile above to begin.` });
       setName("");
-      setEmail("");
-      setPassword("");
     }
+  };
+
+  const remove = async (id: string, displayName: string) => {
+    setBusy(true);
+    const err = await deleteChildProfile(id);
+    setBusy(false);
+    setConfirmDelete(null);
+    setMsg(err ? { ok: false, text: err } : { ok: true, text: `${displayName}'s profile and learning data were deleted.` });
   };
 
   return (
@@ -57,7 +62,7 @@ function ChildManager() {
               key={s.id}
               role="tab"
               aria-selected={activeStudentId === s.id}
-              onClick={() => switchStudent(s.id)}
+              onClick={() => switchStudent(s.id, s.kind)}
               className={cn(
                 "cursor-pointer rounded-2xl border-2 px-3.5 py-2 text-sm font-black transition",
                 activeStudentId === s.id
@@ -66,6 +71,7 @@ function ChildManager() {
               )}
             >
               {s.displayName}
+              {s.kind === "account" && <span className="ml-1.5 text-[10px] font-black uppercase opacity-60">login</span>}
             </button>
           ))}
           <button
@@ -78,27 +84,44 @@ function ChildManager() {
       )}
       {(showForm || students.length === 0) && (
         <div className="mt-3 rounded-2xl border border-line bg-stage/60 p-3.5">
-          <p className="text-sm font-black">Create your child's login</p>
+          <p className="text-sm font-black">Add a child's profile</p>
           <p className="text-xs font-semibold text-slate-muted">
-            Their account links to you automatically. Tip: use your email with a plus, like you+child@gmail.com.
+            Just a name — no email or password needed. They learn right here, under your sign-in.
           </p>
-          <div className="mt-2 grid gap-2 sm:grid-cols-3">
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Child's name" autoComplete="off"
-              className="rounded-xl border-2 border-line bg-white px-3 py-2 text-sm font-bold outline-none placeholder:text-faint focus:border-sky-400" />
-            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Child's email" type="email" autoComplete="off"
-              className="rounded-xl border-2 border-line bg-white px-3 py-2 text-sm font-bold outline-none placeholder:text-faint focus:border-sky-400" />
-            <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password (8+ chars)" type="password" autoComplete="new-password"
-              className="rounded-xl border-2 border-line bg-white px-3 py-2 text-sm font-bold outline-none placeholder:text-faint focus:border-sky-400" />
+          <div className="mt-2 flex flex-wrap gap-2">
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Child's first name" autoComplete="off"
+              onKeyDown={(e) => { if (e.key === "Enter" && valid && !busy) void submit(); }}
+              className="min-w-44 flex-1 rounded-xl border-2 border-line bg-white px-3 py-2 text-sm font-bold outline-none placeholder:text-faint focus:border-sky-400" />
+            <Button variant="blue" className="px-4 py-2 text-sm" disabled={!valid || busy} onClick={submit}>
+              {busy ? <Loader2 size={15} strokeWidth={3} className="animate-spin" /> : <UserPlus size={15} strokeWidth={2.75} />}
+              Add profile
+            </Button>
           </div>
           {msg && (
             <p className={cn("mt-2 rounded-xl border-2 px-3 py-2 text-xs font-bold", msg.ok ? "border-mint-400/50 bg-mint-50 text-mint-800" : "border-coral-400/50 bg-coral-100/50 text-coral-700")} role="alert">
               {msg.text}
             </p>
           )}
-          <Button variant="blue" className="mt-2 px-4 py-2 text-sm" disabled={!valid || busy} onClick={submit}>
-            {busy ? <Loader2 size={15} strokeWidth={3} className="animate-spin" /> : <UserPlus size={15} strokeWidth={2.75} />}
-            Create login
-          </Button>
+          {students.filter((s) => s.kind === "profile").length > 0 && (
+            <div className="mt-2 border-t border-line pt-2">
+              <p className="text-[11px] font-black tracking-wider text-slate-muted uppercase">Remove a profile</p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {students.filter((s) => s.kind === "profile").map((s) => (
+                  <span key={s.id} className="inline-flex items-center gap-1 rounded-full border border-line bg-white px-2.5 py-1 text-xs font-bold">
+                    {s.displayName}
+                    {confirmDelete === s.id ? (
+                      <>
+                        <button onClick={() => void remove(s.id, s.displayName)} className="cursor-pointer font-black text-coral-700 underline">confirm?</button>
+                        <button onClick={() => setConfirmDelete(null)} className="cursor-pointer text-slate-muted underline">keep</button>
+                      </>
+                    ) : (
+                      <button onClick={() => setConfirmDelete(s.id)} className="cursor-pointer text-slate-muted underline hover:text-coral-700">remove</button>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </Card>
@@ -193,7 +216,7 @@ export default function Parent() {
           <EmptyArt className="mx-auto h-28 w-auto" />
           <p className="mt-2 text-lg font-black">Add your child to begin</p>
           <p className="mx-auto max-w-md text-sm font-semibold text-slate-muted">
-            Create their login above — their lessons, scores and reports will land here, separate from every other family.
+            Add their profile above — just a name, no login needed. Their lessons, scores and reports will land here, separate from every other family.
           </p>
         </Card>
       )}

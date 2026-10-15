@@ -23,11 +23,14 @@ import {
 import { supabase, isSupabaseConfigured } from "./supabase";
 import {
   fetchLearnerState,
+  fetchProfileLearnerState,
   fetchProfile,
-  fetchChildren,
-  createChildAccount,
+  fetchFamilyChildren,
+  createChildProfile,
+  deleteChildProfile as deleteChildProfileRow,
   pushLearnerSnapshot,
 } from "./backend";
+import type { LearnerKind } from "./backend";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -102,6 +105,7 @@ export interface ProgressState {
 export interface LinkedStudent {
   id: string;
   displayName: string;
+  kind: LearnerKind;
 }
 
 interface StoreCtx {
@@ -113,14 +117,16 @@ interface StoreCtx {
   accountName: string;
   students: LinkedStudent[];
   activeStudentId: string | null;
+  activeKind: LearnerKind;
   isAdmin: boolean;
   isLoggedIn: boolean;
   canLearn: boolean;
   signUp: (input: { displayName: string; email: string; password: string; role: Role }) => Promise<boolean>;
   signIn: (input: { email: string; password: string }) => Promise<boolean>;
   signOut: () => Promise<void>;
-  addChild: (input: { displayName: string; email: string; password: string }) => Promise<string | null>;
-  switchStudent: (id: string) => void;
+  addChildProfile: (displayName: string) => Promise<string | null>;
+  deleteChildProfile: (id: string) => Promise<string | null>;
+  switchStudent: (id: string, kind: LearnerKind) => void;
   retrySync: () => void;
   sync: { mode: SyncMode };
   /** Local guided tour with sample data (for teacher demos — never touches the backend). */
@@ -359,6 +365,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   const [accountName, setAccountName] = useState("");
   const [students, setStudents] = useState<LinkedStudent[]>([]);
   const [activeStudentId, setActiveStudentId] = useState<string | null>(null);
+  const [activeKind, setActiveKind] = useState<LearnerKind>("account");
   const [isAdmin, setIsAdmin] = useState(false);
   const [progress, setProgress] = useState<ProgressState>(emptyProgress);
   const [syncMode, setSyncMode] = useState<SyncMode>("saved");
@@ -375,9 +382,13 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   userRef.current = userId;
   const roleRef = useRef<Role | null>(null);
   roleRef.current = accountRole;
+  const kindRef = useRef<LearnerKind>("account");
+  kindRef.current = activeKind;
 
   const canWriteAsLearner = useCallback(
-    () => roleRef.current === "student" && !!userRef.current && activeRef.current === userRef.current,
+    () =>
+      (roleRef.current === "student" && !!userRef.current && activeRef.current === userRef.current) ||
+      (roleRef.current === "parent" && kindRef.current === "profile" && !!activeRef.current),
     [],
   );
 
@@ -399,10 +410,10 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // ── load a learner snapshot: server first, offline cache as fallback ──
-  const loadSnapshot = useCallback(async (studentId: string) => {
+  const loadSnapshot = useCallback(async (studentId: string, kind: LearnerKind) => {
     setSyncMode("saving");
     try {
-      const remote = await fetchLearnerState(studentId);
+      const remote = kind === "profile" ? await fetchProfileLearnerState(studentId) : await fetchLearnerState(studentId);
       const rebuilt: ProgressState = {
         ...emptyProgress(),
         userName: remote.displayName,
@@ -482,20 +493,22 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       if (profile.role === "student") {
         setStudents([]);
         setActiveStudentId(uid);
-        await loadSnapshot(uid);
+        setActiveKind("account");
+        await loadSnapshot(uid, "account");
       } else {
         try {
-          const kids = await fetchChildren(uid);
+          const kids = await fetchFamilyChildren(uid);
           setStudents(kids);
           if (kids.length > 0) {
             setActiveStudentId(kids[0].id);
-            await loadSnapshot(kids[0].id);
+            setActiveKind(kids[0].kind);
+            await loadSnapshot(kids[0].id, kids[0].kind);
           } else {
             setActiveStudentId(null);
             setProgress(emptyProgress());
           }
         } catch {
-          setAuthError("Could not load your linked children — check your connection and retry.");
+          setAuthError("Could not load your children — check your connection and retry.");
         }
       }
       setAuthStatus("ready");
@@ -524,6 +537,8 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         setAccountName("");
         setIsAdmin(false);
         setStudents([]);
+        setActiveStudentId(null);
+        setActiveKind("account");
         setActiveStudentId(null);
         setProgress(emptyProgress());
         setAuthStatus("signed-out");
@@ -556,7 +571,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       challengeResults: p.challengeResults,
       xp: p.xp,
       goal: p.goals.lessonsPerWeek,
-    }).then((ok) => {
+    }, kindRef.current).then((ok) => {
       if (cancelled) return;
       if (ok) {
         writeCache(sid, progressRef.current);
@@ -641,25 +656,62 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       setIsAdmin(false);
       setStudents([]);
       setActiveStudentId(null);
+      setActiveKind("account");
       setProgress(emptyProgress());
       setAuthStatus(isSupabaseConfigured ? "signed-out" : "unconfigured");
     }
   }, []);
 
-  const addChild = useCallback(
-    async (input: { displayName: string; email: string; password: string }): Promise<string | null> => {
+  const addChildProfile = useCallback(
+    async (displayName: string): Promise<string | null> => {
+      const name = displayName.trim().slice(0, 40);
+      if (name.length < 2) return "Give the profile a name with at least 2 letters.";
       try {
-        await createChildAccount(input);
+        await createChildProfile(name);
       } catch (e) {
-        return e instanceof Error ? e.message : "Could not create the student login";
+        return e instanceof Error ? e.message : "Could not create the profile";
       }
       try {
         if (userRef.current) {
-          const kids = await fetchChildren(userRef.current);
+          const kids = await fetchFamilyChildren(userRef.current);
           setStudents(kids);
-          if (!activeRef.current && kids.length > 0) {
-            setActiveStudentId(kids[0].id);
-            await loadSnapshot(kids[0].id);
+          const created = kids.find((k) => k.displayName === name && k.kind === "profile");
+          const pick = created ?? kids[kids.length - 1];
+          if (pick) {
+            setActiveStudentId(pick.id);
+            setActiveKind(pick.kind);
+            await loadSnapshot(pick.id, pick.kind);
+          }
+        }
+      } catch {
+        /* list refreshes on next load */
+      }
+      return null;
+    },
+    [loadSnapshot],
+  );
+
+  const deleteChildProfile = useCallback(
+    async (id: string): Promise<string | null> => {
+      try {
+        await deleteChildProfileRow(id);
+      } catch (e) {
+        return e instanceof Error ? e.message : "Could not delete the profile";
+      }
+      try {
+        if (userRef.current) {
+          const kids = await fetchFamilyChildren(userRef.current);
+          setStudents(kids.filter((k) => k.id !== id));
+          if (activeRef.current === id) {
+            if (kids.length > 0) {
+              const next = kids.find((k) => k.id !== id) ?? kids[0];
+              setActiveStudentId(next.id);
+              setActiveKind(next.kind);
+              await loadSnapshot(next.id, next.kind);
+            } else {
+              setActiveStudentId(null);
+              setProgress(emptyProgress());
+            }
           }
         }
       } catch {
@@ -671,9 +723,10 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   );
 
   const switchStudent = useCallback(
-    (id: string) => {
+    (id: string, kind: LearnerKind) => {
       setActiveStudentId(id);
-      void loadSnapshot(id);
+      setActiveKind(kind);
+      void loadSnapshot(id, kind);
     },
     [loadSnapshot],
   );
@@ -927,13 +980,15 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       accountName,
       students,
       activeStudentId,
+      activeKind,
       isAdmin,
       isLoggedIn: demoMode || (authStatus === "ready" && !!userId),
       canLearn: demoMode || (accountRole === "student" && !!userId && activeStudentId === userId),
       signUp,
       signIn,
       signOut,
-      addChild,
+      addChildProfile,
+      deleteChildProfile,
       switchStudent,
       retrySync,
       demoMode,
@@ -953,7 +1008,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       recommendedRevision,
       weeklyRevisionSet,
     };
-  }, [authStatus, authError, userId, accountRole, accountName, students, activeStudentId, isAdmin, syncMode, progress, signUp, signIn, signOut, addChild, switchStudent, retrySync, demoMode, enterDemo, exitDemo, resetDemoTour, recordAttempt, markFlashcardsSeen, saveChallengeResult, celebration, advanceCelebration, dismissCelebration, setGoal]);
+  }, [authStatus, authError, userId, accountRole, accountName, students, activeStudentId, activeKind, isAdmin, syncMode, progress, signUp, signIn, signOut, addChildProfile, deleteChildProfile, switchStudent, retrySync, demoMode, enterDemo, exitDemo, resetDemoTour, recordAttempt, markFlashcardsSeen, saveChallengeResult, celebration, advanceCelebration, dismissCelebration, setGoal]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

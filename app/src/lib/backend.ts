@@ -20,6 +20,14 @@ export interface RemoteLearnerState {
   displayName: string;
 }
 
+export type LearnerKind = "account" | "profile";
+
+export interface FamilyChild {
+  id: string;
+  displayName: string;
+  kind: LearnerKind;
+}
+
 interface AttemptRow {
   id: string;
   lesson_id: string;
@@ -80,18 +88,17 @@ export function requireBackend() {
   return supabase;
 }
 
-export async function fetchLearnerState(studentId: string): Promise<RemoteLearnerState> {
+async function fetchLearning(studentId: string) {
   const db = requireBackend();
-  const [att, mast, badges, days, chDays, chRes, prof] = await Promise.all([
+  const [att, mast, badges, days, chDays, chRes] = await Promise.all([
     db.from("attempts").select("*").eq("student_id", studentId).order("created_at", { ascending: true }).limit(1000),
     db.from("objective_mastery").select("objective_id,attempts,best_score,mastered").eq("student_id", studentId),
     db.from("earned_badges").select("badge_id").eq("student_id", studentId),
     db.from("study_days").select("day").eq("student_id", studentId),
     db.from("challenge_days").select("day").eq("student_id", studentId),
     db.from("challenge_results").select("week_key,correct,total,score_percent,created_at").eq("student_id", studentId).order("created_at", { ascending: true }),
-    db.from("profiles").select("display_name,lessons_per_week,xp").eq("id", studentId).single(),
   ]);
-  for (const r of [att, mast, badges, days, chDays, chRes, prof]) {
+  for (const r of [att, mast, badges, days, chDays, chRes]) {
     if (r.error) throw r.error;
   }
   const mastery: Record<string, ObjectiveEvidence> = {};
@@ -107,6 +114,34 @@ export async function fetchLearnerState(studentId: string): Promise<RemoteLearne
     challengeResults: ((chRes.data ?? []) as { week_key: string; correct: number; total: number; score_percent: number; created_at: string }[]).map(
       (r) => ({ weekKey: r.week_key, dateISO: r.created_at, correct: r.correct, total: r.total, percent: r.score_percent }),
     ),
+  };
+}
+
+export async function fetchLearnerState(studentId: string): Promise<RemoteLearnerState> {
+  const db = requireBackend();
+  const [learning, prof] = await Promise.all([
+    fetchLearning(studentId),
+    db.from("profiles").select("display_name,lessons_per_week,xp").eq("id", studentId).single(),
+  ]);
+  if (prof.error) throw prof.error;
+  return {
+    ...learning,
+    xp: prof.data?.xp ?? 0,
+    goal: prof.data?.lessons_per_week ?? 5,
+    displayName: prof.data?.display_name ?? "Learner",
+  };
+}
+
+/** Same, but for a parent-managed child profile (no login of its own). */
+export async function fetchProfileLearnerState(childId: string): Promise<RemoteLearnerState> {
+  const db = requireBackend();
+  const [learning, prof] = await Promise.all([
+    fetchLearning(childId),
+    db.from("child_profiles").select("display_name,lessons_per_week,xp").eq("id", childId).single(),
+  ]);
+  if (prof.error) throw prof.error;
+  return {
+    ...learning,
     xp: prof.data?.xp ?? 0,
     goal: prof.data?.lessons_per_week ?? 5,
     displayName: prof.data?.display_name ?? "Learner",
@@ -133,6 +168,44 @@ export async function fetchChildren(parentId: string): Promise<{ id: string; dis
   });
 }
 
+/** Every child in a family: login-less profiles first, then legacy linked logins. */
+export async function fetchFamilyChildren(parentId: string): Promise<FamilyChild[]> {
+  const db = requireBackend();
+  const [mine, legacy] = await Promise.all([
+    db.from("child_profiles").select("id,display_name").eq("parent_id", parentId).order("created_at", { ascending: true }),
+    fetchChildren(parentId),
+  ]);
+  if (mine.error) throw mine.error;
+  return [
+    ...((mine.data ?? []).map((c) => ({ id: c.id as string, displayName: (c.display_name as string) ?? "Learner", kind: "profile" as const }))),
+    ...legacy.map((l) => ({ ...l, kind: "account" as const })),
+  ];
+}
+
+export async function createChildProfile(displayName: string): Promise<FamilyChild> {
+  const db = requireBackend();
+  const { data: { user } } = await db.auth.getUser();
+  if (!user) throw new Error("Sign in first");
+  const { data, error } = await db
+    .from("child_profiles")
+    .insert({ parent_id: user.id, display_name: displayName.trim().slice(0, 40) })
+    .select("id,display_name")
+    .single();
+  if (error) throw error;
+  return { id: data.id as string, displayName: (data.display_name as string) ?? displayName, kind: "profile" };
+}
+
+export async function deleteChildProfile(id: string): Promise<void> {
+  const db = requireBackend();
+  // wipe the learner's rows first (learner ids carry no FK), then the profile
+  for (const table of ["challenge_results", "challenge_days", "earned_badges", "objective_mastery", "study_days", "attempts"]) {
+    const { error } = await db.from(table).delete().eq("student_id", id);
+    if (error) throw error;
+  }
+  const { error } = await db.from("child_profiles").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function createChildAccount(input: { displayName: string; email: string; password: string }): Promise<{ studentId: string; email: string }> {
   const db = requireBackend();
   const { data, error } = await db.functions.invoke("create-student", { body: input });
@@ -154,6 +227,7 @@ export async function pushLearnerSnapshot(
     xp: number;
     goal: number;
   },
+  kind: LearnerKind = "account",
 ): Promise<boolean> {
   const db = requireBackend();
   try {
@@ -219,8 +293,9 @@ export async function pushLearnerSnapshot(
       );
       if (error) throw error;
     }
+    const profileTable = kind === "profile" ? "child_profiles" : "profiles";
     const { error: profErr } = await db
-      .from("profiles")
+      .from(profileTable)
       .update({ xp: s.xp, lessons_per_week: Math.max(1, Math.min(12, s.goal)) })
       .eq("id", studentId);
     if (profErr) throw profErr;
