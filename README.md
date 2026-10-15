@@ -94,6 +94,11 @@ select id from auth.users where email = 'you@example.com';
 Run it in Supabase → SQL Editor. Reload the app — the Admin tab appears. Nobody
 can grant this to themselves: the table is writable only with the service key.
 
+The console's **Logins & access** section lists every account (name, role,
+email, children, last sign-in) with search, **password reset**, and **delete**
+— all enforced by the owner-only `admin-users` Edge Function (deployed with
+`supabase functions deploy admin-users --no-verify-jwt`).
+
 ## Credits
 
 - World illustrations: [unDraw](https://undraw.co) scenes by Katerina Limpitsouni (free for commercial use), vendored via the MIT-licensed [`react-undraw-illustrations`](https://github.com/GraemeFulton/react-undraw-illustrations) package (`app/src/assets/illustrations/`).
